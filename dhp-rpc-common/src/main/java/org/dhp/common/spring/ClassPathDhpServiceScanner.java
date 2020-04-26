@@ -1,5 +1,6 @@
 package org.dhp.common.spring;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.context.annotation.ClassPathBeanDefinitionScanner;
@@ -14,6 +15,7 @@ import java.util.Set;
  * @author Dongguabai
  * @date 2018/8/15 13:40
  */
+@Slf4j
 public class ClassPathDhpServiceScanner extends ClassPathBeanDefinitionScanner {
  
  
@@ -41,11 +43,9 @@ public class ClassPathDhpServiceScanner extends ClassPathBeanDefinitionScanner {
     @Override
     public Set<BeanDefinitionHolder> doScan(String... basePackages) {
         Set<BeanDefinitionHolder> beanDefinitions = super.doScan(basePackages);
- 
-        if (beanDefinitions.isEmpty()) {
-            logger.warn("No DgbSecurity Spring Componet was found in '" + Arrays.toString(basePackages) + "' package. Please check your configuration.");
-        }
- 
+
+        log.info("basePackages: {}", basePackages);
+
         return beanDefinitions;
     }
 
