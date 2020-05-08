@@ -9,7 +9,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface DMethod {
 
-    int commandId() default 0;
+    String command() default "";
 
     long timeout() default -1;
 

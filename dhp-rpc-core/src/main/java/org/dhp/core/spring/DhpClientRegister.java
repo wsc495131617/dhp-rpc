@@ -3,13 +3,15 @@ package org.dhp.core.spring;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.annotation.DService;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
-import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.context.ResourceLoaderAware;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
@@ -24,7 +26,7 @@ import java.util.Map;
 import java.util.Set;
 
 @Slf4j
-public class DhpServiceClientRegister implements ImportBeanDefinitionRegistrar, ResourceLoaderAware, BeanFactoryAware, EnvironmentAware, BeanClassLoaderAware {
+public class DhpClientRegister implements ImportBeanDefinitionRegistrar, ResourceLoaderAware, BeanFactoryAware, EnvironmentAware, BeanClassLoaderAware {
 
     private ResourceLoader resourceLoader;
 
@@ -35,7 +37,6 @@ public class DhpServiceClientRegister implements ImportBeanDefinitionRegistrar, 
     private BeanFactory beanFactory;
 
     public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
-        log.info("registerBeanDefinitions");
         Map<String, Object> annotationAttributes = importingClassMetadata.getAnnotationAttributes(DService.class.getName());
         ClassPathScanningCandidateComponentProvider scanner = getClassScanner();
         String[] basePackages = null;
@@ -58,9 +59,11 @@ public class DhpServiceClientRegister implements ImportBeanDefinitionRegistrar, 
             for(BeanDefinition compDefinition : comps){
                 try {
                     if(compDefinition instanceof AnnotatedBeanDefinition){
-                        AnnotatedBeanDefinition definition = (AnnotatedBeanDefinition)compDefinition;
-                        Object bean = this.clientProxyFactory.createProxy(definition);
-                        ((DefaultListableBeanFactory) this.beanFactory).registerSingleton(definition.getBeanClassName(), bean);
+                        RootBeanDefinition rbd = new RootBeanDefinition(ClientProxyFactoryBean.class);
+                        MutablePropertyValues propertyValues = new MutablePropertyValues();
+                        propertyValues.add("className", compDefinition.getBeanClassName());
+                        rbd.setPropertyValues(propertyValues);
+                        ((BeanDefinitionRegistry) this.beanFactory).registerBeanDefinition("proxy_"+compDefinition.getBeanClassName(), rbd);
                     } else {
                         log.debug("skip component definition: {}", compDefinition);
                     }
@@ -69,9 +72,11 @@ public class DhpServiceClientRegister implements ImportBeanDefinitionRegistrar, 
                 }
             }
         }
+        //添加Bean
+        BeanDefinition invokeBeanDefinition = BeanDefinitionBuilder.rootBeanDefinition(ClientProxyInvokeHandler.class).getBeanDefinition();
+        registry.registerBeanDefinition(invokeBeanDefinition.getBeanClassName(), invokeBeanDefinition);
     }
 
-    ClientProxyFactory clientProxyFactory = new ClientProxyFactory();
 
     private ClassPathScanningCandidateComponentProvider getClassScanner() {
         return new ClassPathScanningCandidateComponentProvider(false, this.environment) {
