@@ -3,15 +3,16 @@ package org.dhp.core.rpc;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.annotation.DMethod;
 import org.dhp.common.annotation.DService;
+import org.dhp.core.spring.FrameworkException;
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Future;
 
 @Slf4j
 public class RpcServerMethodManager {
@@ -46,17 +47,22 @@ public class RpcServerMethodManager {
         commands.putIfAbsent(commandName, command);
 
         Type[] args = method.getParameterTypes();
-        Type returnType = method.getReturnType();
-
+        Type returnType = method.getGenericReturnType();
         MethodType methodType;
 
         //入参为1个
         if (args.length == 1) {
-            if(returnType instanceof Future){
-                methodType = MethodType.Future;
+            //一定要是ListenableFuture
+            if(returnType instanceof ParameterizedType){
+                if(ListenableFuture.class.isAssignableFrom((Class<?>)((ParameterizedType)returnType).getRawType())){
+                    methodType = MethodType.Future;
+                } else {
+                    throw new FrameworkException("Method ParameterizedType Return must be ListenableFuture");
+                }
             } else {
-                methodType = MethodType.Void;
+                methodType = MethodType.Default;
             }
+
         } else if (args.length == 2) {//如果入参是2个，那么就说明，其中一个是入参对象，另外一个是Stream流对象
             methodType = MethodType.Stream;
         } else {

@@ -1,9 +1,12 @@
 package org.dhp.core.rpc;
 
 public interface Stream<T> {
+
+    void onCanceled();
+
     void onNext(T value);
 
-    void onError(Throwable throwable);
+    void onFailed(Throwable throwable);
 
     void onCompleted();
 }

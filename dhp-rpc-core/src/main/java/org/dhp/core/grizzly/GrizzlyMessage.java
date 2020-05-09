@@ -1,6 +1,7 @@
 package org.dhp.core.grizzly;
 
 import org.dhp.core.rpc.Message;
+import org.dhp.core.rpc.MessageStatus;
 import org.dhp.core.rpc.MetaData;
 import org.glassfish.grizzly.Buffer;
 import org.glassfish.grizzly.memory.HeapBuffer;
@@ -33,12 +34,12 @@ public class GrizzlyMessage extends Message {
         int startPos = buffer.position();
         int packLen = buffer.getInt();
         this.setLength(packLen);
-        //跳过预留头部的长度
-        buffer.position(buffer.position()+HEAD_LEN-4);
+        this.setId(buffer.getInt());
+        this.setStatus(MessageStatus.values()[buffer.get()]);
         //找到对应的commandName
         this.setCommand(readString(buffer));
-        //head len
-        int headLen = buffer.getShort();
+        //metadata
+        int headLen = buffer.get();
         if(headLen>0){
             MetaData metaData = new MetaData();
             for(int i=0;i<headLen;i++){
@@ -60,14 +61,23 @@ public class GrizzlyMessage extends Message {
         MetaData metadata = getMetadata();
         if(metadata != null) {
             headLen += metadata.write(outputStream);
+        } else {
+            outputStream.writeByte(-1);
+            headLen++;
         }
-        int bodyLen = this.getData().length;
+        int bodyLen = 0;
+        byte[] data = this.getData();
+        if(data != null){
+            bodyLen = this.getData().length;
+        }
         int length = headLen+bodyLen+HEAD_LEN;
         Buffer buffer = GrizzlyGlobal.memoryManager.allocate(length);
         buffer.putInt(length);
-        //暂时预留跳过
-        buffer.position(HEAD_LEN);
+        buffer.putInt(this.getId());
+        buffer.put((byte) this.getStatus().getId());
         buffer.put(outputStream.getBuffer());
+        if(data != null)
+            buffer.put(data);
         buffer.position(0);
         return buffer;
     }

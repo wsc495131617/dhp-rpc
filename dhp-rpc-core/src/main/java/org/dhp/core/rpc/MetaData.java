@@ -17,7 +17,8 @@ public class MetaData {
     }
 
     public int write(GrizzlyOutputStream outputStream) {
-        int len = 0;
+        int len = 1;
+        outputStream.writeByte(data.size());
         for(Integer key : data.keySet()){
             outputStream.writeInt(key);
             len += 4;
@@ -28,5 +29,12 @@ public class MetaData {
             len += bytes.length;
         }
         return len;
+    }
+
+    @Override
+    public String toString() {
+        return "MetaData{" +
+                "data=" + data +
+                '}';
     }
 }

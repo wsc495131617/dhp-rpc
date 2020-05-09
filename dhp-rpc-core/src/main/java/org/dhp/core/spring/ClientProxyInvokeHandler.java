@@ -3,6 +3,7 @@ package org.dhp.core.spring;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.annotation.DMethod;
 import org.dhp.common.annotation.DService;
+import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.rpc.*;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
@@ -13,6 +14,7 @@ import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.Set;
@@ -26,6 +28,9 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
 
     @Resource
     DhpProperties dhpProperties;
+
+    @Resource
+    RpcChannelPool channelPool;
 
     protected Set<Method> excludeMethods = ConcurrentHashMap.newKeySet();
 
@@ -98,58 +103,115 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
         Type[] paramTypes = method.getParameterTypes();
 
         byte[] argBody;
-        MethodType methodType;
-
+        MethodType methodType = MethodType.Default;
+        Stream argStream = null;
+        FutureImpl future = null;
         //入参为1个
         if (args.length == 1) {
-            if(returnType instanceof Future){
+            future = new FutureImpl();
+            if(ListenableFuture.class.isAssignableFrom((Class)returnType)){
                 methodType = MethodType.Future;
             } else {
-                methodType = MethodType.Void;
+                methodType = MethodType.Default;
             }
-            argBody = encodeArgument(paramTypes[0], args[0]);
+            argBody = ProtostuffUtils.serialize((Class)paramTypes[0], args[0]);
         } else if (args.length == 2) {//如果入参是2个，那么就说明，其中一个是入参对象，另外一个是Stream流对象
             if(paramTypes[0] instanceof Stream){
-                argBody = encodeArgument(paramTypes[1], args[1]);
+                argBody = ProtostuffUtils.serialize((Class)paramTypes[1], args[1]);
+                argStream = (Stream) args[0];
             } else {
-                argBody = encodeArgument(paramTypes[0], args[0]);
+                argBody = ProtostuffUtils.serialize((Class)paramTypes[0], args[0]);
+                argStream = (Stream) args[1];
             }
             methodType = MethodType.Stream;
         } else {
             throw new RpcException(ErrorCode.ILLEGAL_PARAMETER_DEFINITION);
         }
+        MethodType finalMethodType = methodType;
+        Stream finalArgStream = argStream;
+        FutureImpl finalFuture = future;
+        MethodType finalMethodType1 = methodType;
+        Stream<byte[]> stream = new Stream<byte[]>() {
+            public void onCanceled() {
+                if (finalMethodType == MethodType.Stream) {
+                    finalArgStream.onCanceled();
+                } else {
+                    finalFuture.cancel(false);
+                }
+            }
+            public void onNext(byte[] value) {
+                Object ret = dealResult(finalMethodType1, method, value);
+                if (finalMethodType == MethodType.Stream) {
+                    finalArgStream.onNext(ret);
+                } else {
+                    finalFuture.result(ret);
+                }
+            }
+            public void onFailed(Throwable throwable) {
+                if (finalMethodType == MethodType.Stream) {
+                    finalArgStream.onFailed(throwable);
+                } else {
+                    finalFuture.result(throwable);
+                }
+            }
+            public void onCompleted() {
+                if (finalMethodType == MethodType.Stream) {
+                    finalArgStream.onCompleted();
+                } else {
+                    finalFuture.result(null);
+                }
+            }
+        };
         //发送
-        Long messageId = sendMessage(command, argBody);
+        Integer messageId = sendMessage(command, argBody, stream);
         if(messageId == null){
             throw new RpcException(ErrorCode.SEND_MESSAGE_FAILED);
         }
-
-        //如果返回是一个Future，那么说明方法是一个异步方法
-        if (methodType == MethodType.Stream) {
-
-        } else {//同步方法返回
-
+        if (finalMethodType == MethodType.Stream) {
+            return null;
+        } else if (finalMethodType == MethodType.Future) {
+            return future;
+        } else if(future != null)
+            return future.get();
+        else
+            return null;
+    }
+    private Object dealResult(MethodType methodType, Method method, byte[] result) {
+        try {
+            if(methodType == MethodType.Default) {
+                return ProtostuffUtils.deserialize(result, (Class) method.getReturnType());
+            } else if(methodType == MethodType.Future){
+                ParameterizedType type = (ParameterizedType) method.getGenericReturnType();
+                Class clas = (Class)type.getActualTypeArguments()[0];
+                return ProtostuffUtils.deserialize(result, clas);
+            } else if(methodType == MethodType.Stream){
+                Type[] paramTypes = method.getParameterTypes();
+                if(Stream.class.isAssignableFrom((Class)paramTypes[0])){
+                    return ProtostuffUtils.deserialize(result, (Class)paramTypes[1]);
+                } else {
+                    return ProtostuffUtils.deserialize(result, (Class)paramTypes[0]);
+                }
+            }
+        } catch (Throwable e){
+            log.error(e.getMessage(), e);
         }
         return null;
     }
-
-    protected byte[] encodeArgument(Type type, Object arg) {
-        return null;
-    }
-
     /**
      * 发送消息，并返回消息编号
      * @param command
      * @param argBody
      * @return
      */
-    protected Long sendMessage(Command command, byte[] argBody) {
+    protected Integer sendMessage(Command command, byte[] argBody, Stream<byte[]> stream) {
         Node node = getNode(command);
         if(node == null){
             throw new RpcException(ErrorCode.NODE_NOT_FOUND);
         }
-        log.info("send message to node {}", node);
-        return 0l;
+        RpcChannel channel = channelPool.getChannel(node);
+        channel.write(command.getName(), argBody, stream);
+
+        return 0;
     }
 
 

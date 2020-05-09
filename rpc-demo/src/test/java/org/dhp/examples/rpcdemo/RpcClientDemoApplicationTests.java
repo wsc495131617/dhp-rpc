@@ -1,24 +1,25 @@
 package org.dhp.examples.rpcdemo;
 
 import lombok.extern.slf4j.Slf4j;
-import org.dhp.common.rpc.RpcResponse;
 import org.dhp.core.rpc.Stream;
 import org.dhp.examples.rpcdemo.client.IHelloService;
 import org.dhp.examples.rpcdemo.pojo.HelloRequest;
+import org.dhp.examples.rpcdemo.pojo.HelloResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import javax.annotation.Resource;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 @Slf4j
-@SpringBootTest
+@SpringBootTest(classes = {RpcClientDemoApplication.class})
 class RpcClientDemoApplicationTests {
 
     @Resource
     IHelloService service;
 
-    int TOTAL = 30000000;
+    int TOTAL = 20000;
 
     @Test
     void contextLoads() {
@@ -32,15 +33,28 @@ class RpcClientDemoApplicationTests {
 
     @Test
     void callHello() {
-        service.say(new HelloRequest());
-        Future<RpcResponse> responseFuture = service.asyncSay(new HelloRequest());
-        service.streamSay(new HelloRequest(), new Stream<RpcResponse>() {
-            public void onNext(RpcResponse value) {
+        HelloResponse ret = service.say(new HelloRequest());
+        log.info("default say: {}", ret);
+        Future<HelloResponse> responseFuture = service.asyncSay(new HelloRequest());
+        try {
+            ret = responseFuture.get();
+            log.info("future asyncSay: {}", ret);
+        } catch (InterruptedException e) {
+        } catch (ExecutionException e) {
+        }
+        log.info("default say: {}", ret);
+        service.streamSay(new HelloRequest(), new Stream<HelloResponse>() {
+            public void onCanceled() {
+                log.info("onCancel stream");
             }
-            public void onError(Throwable throwable) {
+            public void onNext(HelloResponse value) {
+                log.info("onNext stream: {}", value);
+            }
+            public void onFailed(Throwable throwable) {
+                log.info("onError stream: {}", throwable);
             }
             public void onCompleted() {
-
+                log.info("onCompleted stream");
             }
         });
     }

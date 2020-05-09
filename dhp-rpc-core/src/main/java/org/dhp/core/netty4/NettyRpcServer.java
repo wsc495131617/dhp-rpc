@@ -1,6 +1,7 @@
 package org.dhp.core.netty4;
 
 import org.dhp.core.rpc.IRpcServer;
+import org.dhp.core.rpc.RpcServerMethodManager;
 
 public class NettyRpcServer implements IRpcServer {
 
@@ -10,8 +11,7 @@ public class NettyRpcServer implements IRpcServer {
         this.port = port;
     }
 
-    @Override
-    public void start() {
+    public void start(RpcServerMethodManager methodManager) {
 
     }
 }

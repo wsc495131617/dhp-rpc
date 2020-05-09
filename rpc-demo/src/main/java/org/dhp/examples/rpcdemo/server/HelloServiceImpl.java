@@ -1,28 +1,55 @@
 package org.dhp.examples.rpcdemo.server;
 
+import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.RpcResponse;
+import org.dhp.core.rpc.FutureImpl;
+import org.dhp.core.rpc.ListenableFuture;
 import org.dhp.core.rpc.Stream;
 import org.dhp.examples.rpcdemo.client.IHelloService;
 import org.dhp.examples.rpcdemo.pojo.HelloRequest;
+import org.dhp.examples.rpcdemo.pojo.HelloResponse;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.Future;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
+@Slf4j
 @Service
 public class HelloServiceImpl implements IHelloService {
 
+    ScheduledExecutorService pool = Executors.newScheduledThreadPool(2);
+
+    AtomicInteger count = new AtomicInteger();
+
     @Override
-    public RpcResponse say(HelloRequest request) {
-        return null;
+    public HelloResponse say(HelloRequest request) {
+        HelloResponse response = HelloResponse.builder()
+                .content("say result")
+                .build();
+        return response;
     }
 
-    @Override
-    public Future<RpcResponse> asyncSay(HelloRequest request) {
-        return null;
+    public ListenableFuture<HelloResponse> asyncSay(HelloRequest request) {
+        FutureImpl future = new FutureImpl<RpcResponse>(){
+        };
+        pool.schedule(()->{
+            log.info("asyncSay back");
+            HelloResponse response = HelloResponse.builder()
+                    .content("asyncSay result")
+                    .build();
+            future.result(response);
+        }, 1000, TimeUnit.MILLISECONDS);
+        return future;
     }
 
-    @Override
-    public void streamSay(HelloRequest request, Stream<RpcResponse> stream) {
-
+    public void streamSay(HelloRequest request, Stream<HelloResponse> stream) {
+        pool.scheduleAtFixedRate(()->{
+            HelloResponse response = HelloResponse.builder()
+                    .content("streamSay result: "+count.incrementAndGet())
+                    .build();
+            stream.onNext(response);
+        }, 1000, 1000, TimeUnit.MILLISECONDS);
     }
 }

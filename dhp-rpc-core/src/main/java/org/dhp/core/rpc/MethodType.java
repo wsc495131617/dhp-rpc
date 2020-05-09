@@ -1,5 +1,5 @@
 package org.dhp.core.rpc;
 
 public enum MethodType {
-    Void, Future, Stream
+    Default, Future, Stream
 }

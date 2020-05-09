@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class Node {
     String name;
-    String port;
+    int port;
     String host;
+    long timeout;
 }
