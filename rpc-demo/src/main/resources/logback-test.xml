@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 不分级别同步文件日志输出配置 -->
+<configuration scan="true" scanPeriod="60 seconds" debug="false">
+
+    <included>
+        <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+        <property name="LOG_FILE" value="${LOG_FILE:-${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}}/spring.log}"/>
+        <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+        <include resource="org/springframework/boot/logging/logback/file-appender.xml"/>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+    </included>
+</configuration>

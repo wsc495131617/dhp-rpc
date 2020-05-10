@@ -19,7 +19,7 @@ class RpcClientDemoApplicationTests {
     @Resource
     IHelloService service;
 
-    int TOTAL = 20000;
+    int TOTAL = 50000;
 
     @Test
     void contextLoads() {

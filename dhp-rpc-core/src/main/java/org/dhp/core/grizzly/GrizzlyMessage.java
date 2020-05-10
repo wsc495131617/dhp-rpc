@@ -6,6 +6,8 @@ import org.dhp.core.rpc.MetaData;
 import org.glassfish.grizzly.Buffer;
 import org.glassfish.grizzly.memory.HeapBuffer;
 
+import java.util.Map;
+
 public class GrizzlyMessage extends Message {
 
     public GrizzlyMessage() {
@@ -27,7 +29,7 @@ public class GrizzlyMessage extends Message {
         byte[] bytes = value.getBytes();
         outputStream.writeByte(bytes.length);
         outputStream.writeBuffer(HeapBuffer.wrap(bytes));
-        return bytes.length+1;
+        return bytes.length + 1;
     }
 
     public void unpack(Buffer buffer) {
@@ -40,9 +42,9 @@ public class GrizzlyMessage extends Message {
         this.setCommand(readString(buffer));
         //metadata
         int headLen = buffer.get();
-        if(headLen>0){
+        if (headLen > 0) {
             MetaData metaData = new MetaData();
-            for(int i=0;i<headLen;i++){
+            for (int i = 0; i < headLen; i++) {
                 int metadataId = buffer.getInt();
                 String metdataValue = readString(buffer);
                 metaData.add(metadataId, metdataValue);
@@ -59,24 +61,36 @@ public class GrizzlyMessage extends Message {
         GrizzlyOutputStream outputStream = new GrizzlyOutputStream();
         int headLen = writeString(outputStream, getCommand());
         MetaData metadata = getMetadata();
-        if(metadata != null) {
-            headLen += metadata.write(outputStream);
+        if (metadata != null) {
+            int len = 1;
+            Map<Integer, String> data = metadata.getData();
+            outputStream.writeByte(data.size());
+            for (Integer key : data.keySet()) {
+                outputStream.writeInt(key);
+                len += 4;
+                byte[] bytes = data.get(key).getBytes();
+                outputStream.writeByte(bytes.length);
+                len += 1;
+                outputStream.writeBytes(bytes);
+                len += bytes.length;
+            }
+            headLen += len;
         } else {
             outputStream.writeByte(-1);
             headLen++;
         }
         int bodyLen = 0;
         byte[] data = this.getData();
-        if(data != null){
+        if (data != null) {
             bodyLen = this.getData().length;
         }
-        int length = headLen+bodyLen+HEAD_LEN;
+        int length = headLen + bodyLen + HEAD_LEN;
         Buffer buffer = GrizzlyGlobal.memoryManager.allocate(length);
         buffer.putInt(length);
         buffer.putInt(this.getId());
         buffer.put((byte) this.getStatus().getId());
         buffer.put(outputStream.getBuffer());
-        if(data != null)
+        if (data != null)
             buffer.put(data);
         buffer.position(0);
         return buffer;
