@@ -6,11 +6,10 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import lombok.extern.slf4j.Slf4j;
-import org.dhp.core.rpc.RpcChannel;
 import org.dhp.common.rpc.Stream;
+import org.dhp.core.rpc.RpcChannel;
 import org.glassfish.grizzly.CompletionHandler;
 
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
@@ -43,13 +42,10 @@ public class NettyRpcChannel extends RpcChannel {
                         }
                     });
         }
-        try {
-            connect();
-        } catch (TimeoutException e) {
-        }
+        connect();
     }
 
-    public boolean connect() throws TimeoutException {
+    public boolean connect() {
         if (channel == null || !channel.isOpen()) {
             ChannelFuture future = null;
             try {
@@ -72,6 +68,9 @@ public class NettyRpcChannel extends RpcChannel {
 
     @Override
     public Integer write(String name, byte[] argBody, Stream<byte[]> messageStream) {
+        if(!channel.isOpen() || !channel.isActive()){
+            connect();
+        }
         NettyMessage message = new NettyMessage();
         message.setId(_ID.incrementAndGet());
         message.setCommand(name);

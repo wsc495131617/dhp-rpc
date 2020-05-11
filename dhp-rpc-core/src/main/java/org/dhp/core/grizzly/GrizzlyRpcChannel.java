@@ -77,6 +77,14 @@ public class GrizzlyRpcChannel extends RpcChannel {
     }
 
     public Integer write(String name, byte[] argBody, Stream<byte[]> messageStream) {
+        if(connection.isOpen()){
+            try {
+                this.connect();
+            } catch (TimeoutException e) {
+                log.error(e.getMessage(), e);
+                return null;
+            }
+        }
         GrizzlyMessage message = new GrizzlyMessage();
         message.setId(_ID.incrementAndGet());
         message.setCommand(name);

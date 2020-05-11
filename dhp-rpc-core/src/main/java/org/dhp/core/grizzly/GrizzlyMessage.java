@@ -5,6 +5,7 @@ import org.dhp.core.rpc.MessageStatus;
 import org.dhp.core.rpc.MetaData;
 import org.glassfish.grizzly.Buffer;
 import org.glassfish.grizzly.memory.HeapBuffer;
+import org.glassfish.grizzly.memory.MemoryManager;
 
 import java.util.Map;
 
@@ -85,7 +86,7 @@ public class GrizzlyMessage extends Message {
             bodyLen = this.getData().length;
         }
         int length = headLen + bodyLen + HEAD_LEN;
-        Buffer buffer = GrizzlyGlobal.memoryManager.allocate(length);
+        Buffer buffer = MemoryManager.DEFAULT_MEMORY_MANAGER.allocate(length);
         buffer.putInt(length);
         buffer.putInt(this.getId());
         buffer.put((byte) this.getStatus().getId());

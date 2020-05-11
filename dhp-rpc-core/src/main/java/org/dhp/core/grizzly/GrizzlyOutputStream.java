@@ -2,6 +2,7 @@ package org.dhp.core.grizzly;
 
 import org.glassfish.grizzly.Buffer;
 import org.glassfish.grizzly.memory.HeapBuffer;
+import org.glassfish.grizzly.memory.MemoryManager;
 
 import java.io.IOException;
 
@@ -29,12 +30,12 @@ public class GrizzlyOutputStream extends OutputStreamExt {
 
     private void ensureCapacity(final int len) {
         if (currentBuffer == null) {
-            currentBuffer = GrizzlyGlobal.memoryManager.allocate(Math.max(NEW_BUFFER_SIZE_AT_LEAST, len));
+            currentBuffer = MemoryManager.DEFAULT_MEMORY_MANAGER.allocate(Math.max(NEW_BUFFER_SIZE_AT_LEAST, len));
         } else if (currentBuffer.remaining() < len) {
             if (currentBuffer.capacity() - currentBuffer.limit() > len) {
                 currentBuffer.limit(len - currentBuffer.remaining() + currentBuffer.limit());
             } else {
-                currentBuffer = GrizzlyGlobal.memoryManager.reallocate((HeapBuffer) currentBuffer,
+                currentBuffer = MemoryManager.DEFAULT_MEMORY_MANAGER.reallocate((HeapBuffer) currentBuffer,
                         Math.max(currentBuffer.capacity() + len, (currentBuffer.capacity() * 3) / 2 + 1));
             }
         }
