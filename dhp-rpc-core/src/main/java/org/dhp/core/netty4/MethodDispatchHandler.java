@@ -8,10 +8,7 @@ import org.dhp.common.rpc.CompleteHandler;
 import org.dhp.common.rpc.ListenableFuture;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.utils.ProtostuffUtils;
-import org.dhp.core.rpc.MessageStatus;
-import org.dhp.core.rpc.MethodType;
-import org.dhp.core.rpc.RpcServerMethodManager;
-import org.dhp.core.rpc.ServerCommand;
+import org.dhp.core.rpc.*;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
@@ -49,7 +46,7 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
                     retMessage.setStatus(MessageStatus.Updating);
                     retMessage.setCommand(command.getName());
                     retMessage.setMetadata(message.getMetadata());
-                    retMessage.setData(dealResult(command, value));
+                    retMessage.setData(MethodDispatchUtils.dealResult(command, value));
                     ctx.channel().writeAndFlush(retMessage);
                 }
 
@@ -58,7 +55,7 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
                     retMessage.setId(message.getId());
                     retMessage.setStatus(MessageStatus.Failed);
                     retMessage.setCommand(command.getName());
-                    retMessage.setData(dealFailed(command, throwable));
+                    retMessage.setData(MethodDispatchUtils.dealFailed(command, throwable));
                     retMessage.setMetadata(message.getMetadata());
                     ctx.channel().writeAndFlush(retMessage);
                 }
@@ -104,7 +101,7 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
                 retMessage.setId(message.getId());
                 retMessage.setStatus(MessageStatus.Completed);
                 retMessage.setMetadata(message.getMetadata());
-                retMessage.setData(dealResult(command, result));
+                retMessage.setData(MethodDispatchUtils.dealResult(command, result));
                 retMessage.setCommand(command.getName());
                 ctx.channel().writeAndFlush(retMessage);
             } else if (command.getType() == MethodType.Future) {// future<resp> call(req)
@@ -140,7 +137,7 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
             retMessage.setId(message.getId());
             retMessage.setStatus(MessageStatus.Completed);
             retMessage.setMetadata(message.getMetadata());
-            retMessage.setData(dealResult(command, result));
+            retMessage.setData(MethodDispatchUtils.dealResult(command, result));
             retMessage.setCommand(command.getName());
             connection.writeAndFlush(retMessage);
         }
@@ -160,34 +157,10 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
             retMessage.setStatus(MessageStatus.Failed);
             retMessage.setMetadata(message.getMetadata());
             retMessage.setCommand(command.getName());
-            retMessage.setData(dealFailed(command, e));
+            retMessage.setData(MethodDispatchUtils.dealFailed(command, e));
             connection.writeAndFlush(retMessage);
         }
     }
 
-    private byte[] dealFailed(ServerCommand command, Throwable e) {
-        return null;
-    }
 
-    private byte[] dealResult(ServerCommand command, Object result) {
-        try {
-            if (command.getType() == MethodType.Default) {
-                return ProtostuffUtils.serialize((Class) command.getMethod().getReturnType(), result);
-            } else if (command.getType() == MethodType.Future) {
-                ParameterizedType type = (ParameterizedType) command.getMethod().getGenericReturnType();
-                Class clas = (Class) type.getActualTypeArguments()[0];
-                return ProtostuffUtils.serialize(clas, result);
-            } else if (command.getType() == MethodType.Stream) {
-                Type[] paramTypes = command.getMethod().getParameterTypes();
-                if (Stream.class.isAssignableFrom((Class) paramTypes[0])) {
-                    return ProtostuffUtils.serialize((Class) paramTypes[1], result);
-                } else {
-                    return ProtostuffUtils.serialize((Class) paramTypes[0], result);
-                }
-            }
-        } catch (Throwable e) {
-            log.error(e.getMessage(), e);
-        }
-        return null;
-    }
 }

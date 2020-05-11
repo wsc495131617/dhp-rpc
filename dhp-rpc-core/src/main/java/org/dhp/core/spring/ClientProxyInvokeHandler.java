@@ -108,7 +108,7 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
         }
         Command command = getCommand(method);
         if (command == null) {
-            throw new RpcException(ErrorCode.COMMAND_NOT_FOUND);
+            throw new RpcException(RpcErrorCode.COMMAND_NOT_FOUND);
         }
 
         Type returnType = method.getReturnType();
@@ -137,7 +137,7 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
             }
             methodType = MethodType.Stream;
         } else {
-            throw new RpcException(ErrorCode.ILLEGAL_PARAMETER_DEFINITION);
+            throw new RpcException(RpcErrorCode.ILLEGAL_PARAMETER_DEFINITION);
         }
         MethodType finalMethodType = methodType;
         Stream finalArgStream = argStream;
@@ -179,8 +179,8 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
         };
         //发送
         Integer messageId = sendMessage(command, argBody, stream);
-        if (messageId == null) {
-            throw new RpcException(ErrorCode.SEND_MESSAGE_FAILED);
+        if(messageId == null){
+            throw new RpcException(RpcErrorCode.SEND_MESSAGE_FAILED);
         }
         if (finalMethodType == MethodType.Stream) {
             return null;
@@ -223,8 +223,8 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
      */
     protected Integer sendMessage(Command command, byte[] argBody, Stream<byte[]> stream) {
         Node node = getNode(command);
-        if (node == null) {
-            throw new RpcException(ErrorCode.NODE_NOT_FOUND);
+        if(node == null){
+            throw new RpcException(RpcErrorCode.NODE_NOT_FOUND);
         }
         RpcChannel channel = channelPool.getChannel(node);
         channel.write(command.getName(), argBody, stream);

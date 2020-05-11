@@ -67,7 +67,7 @@ public class RpcServerMethodManager {
         } else if (args.length == 2) {//如果入参是2个，那么就说明，其中一个是入参对象，另外一个是Stream流对象
             methodType = MethodType.Stream;
         } else {
-            throw new RpcException(ErrorCode.ILLEGAL_PARAMETER_DEFINITION);
+            throw new RpcException(RpcErrorCode.ILLEGAL_PARAMETER_DEFINITION);
         }
         command.setType(methodType);
 
