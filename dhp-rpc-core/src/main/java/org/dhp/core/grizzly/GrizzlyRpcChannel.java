@@ -10,6 +10,7 @@ import org.glassfish.grizzly.filterchain.TransportFilter;
 import org.glassfish.grizzly.nio.transport.TCPNIOConnection;
 import org.glassfish.grizzly.nio.transport.TCPNIOTransport;
 import org.glassfish.grizzly.nio.transport.TCPNIOTransportBuilder;
+import org.glassfish.grizzly.strategies.SameThreadIOStrategy;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
@@ -39,6 +40,11 @@ public class GrizzlyRpcChannel extends RpcChannel {
             fbuilder.add(streamFilter);
 
             builder.setProcessor(fbuilder.build());
+
+            builder.setTcpNoDelay(true);
+            builder.setKeepAlive(true);
+            builder.setLinger(0);
+            builder.setIOStrategy(SameThreadIOStrategy.getInstance());
 
             this.transport = builder.build();
 

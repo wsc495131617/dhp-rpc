@@ -10,6 +10,7 @@ import org.junit.Test;
 
 @Slf4j
 public class MessageTests {
+    int TOTAL = 3000000;
 
     @Test
     public void grizzlyMessage(){
@@ -34,6 +35,26 @@ public class MessageTests {
         msg = new GrizzlyMessage(buffer);
         log.info("msg:{}", msg);
 
+        long st = System.currentTimeMillis();
+        for(int i=0;i<TOTAL;i++){
+            msg = new GrizzlyMessage();
+            msg.setId(1);
+            msg.setCommand("test");
+            metadata = new MetaData();
+            metadata.add(2, "ddd");
+            msg.setMetadata(metadata);
+            msg.setData("hello".getBytes());
+            buffer = msg.pack();
+            msg = new GrizzlyMessage(buffer);
+
+            msg = new GrizzlyMessage();
+            msg.setId(1);
+            msg.setCommand("test");
+            msg.setData("hello".getBytes());
+            buffer = msg.pack();
+            msg = new GrizzlyMessage(buffer);
+        }
+        System.out.println("cost: "+(System.currentTimeMillis()-st)+"ms");
     }
 
     @Test
@@ -58,5 +79,27 @@ public class MessageTests {
         log.info("buffer:{}", buffer);
         msg = new NettyMessage(buffer);
         log.info("msg:{}", msg);
+
+        long st = System.currentTimeMillis();
+        for(int i=0;i<TOTAL;i++){
+            msg = new NettyMessage();
+            msg.setId(1);
+            msg.setCommand("test");
+            metadata = new MetaData();
+            metadata.add(2, "ddd");
+            msg.setMetadata(metadata);
+            msg.setData("hello".getBytes());
+            buffer = msg.pack();
+            msg = new NettyMessage(buffer);
+
+            msg = new NettyMessage();
+            msg.setId(1);
+            msg.setCommand("test");
+            msg.setData("hello".getBytes());
+            buffer = msg.pack();
+            msg = new NettyMessage(buffer);
+        }
+        System.out.println("cost: "+(System.currentTimeMillis()-st)+"ms");
+
     }
 }
