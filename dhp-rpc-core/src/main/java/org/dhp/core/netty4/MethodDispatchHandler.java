@@ -9,12 +9,8 @@ import org.dhp.common.rpc.ListenableFuture;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.rpc.*;
-import org.dhp.core.rpc.MethodType;
-import org.dhp.core.rpc.RpcServerMethodManager;
-import org.dhp.core.rpc.ServerCommand;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 @Slf4j
@@ -65,7 +61,7 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
                         retMessage.setStatus(MessageStatus.Updating);
                         retMessage.setCommand(command.getName());
                         retMessage.setMetadata(message.getMetadata());
-                        retMessage.setData(dealResult(command, value));
+                        retMessage.setData(MethodDispatchUtils.dealResult(command, value));
                         ctx.channel().writeAndFlush(retMessage);
                     }
 
@@ -74,7 +70,7 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
                         retMessage.setId(message.getId());
                         retMessage.setStatus(MessageStatus.Failed);
                         retMessage.setCommand(command.getName());
-                        retMessage.setData(dealFailed(command, throwable));
+                        retMessage.setData(MethodDispatchUtils.dealFailed(command, throwable));
                         retMessage.setMetadata(message.getMetadata());
                         ctx.channel().writeAndFlush(retMessage);
                     }
@@ -120,7 +116,7 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
                     retMessage.setId(message.getId());
                     retMessage.setStatus(MessageStatus.Completed);
                     retMessage.setMetadata(message.getMetadata());
-                    retMessage.setData(dealResult(command, result));
+                    retMessage.setData(MethodDispatchUtils.dealResult(command, result));
                     retMessage.setCommand(command.getName());
                     ctx.channel().writeAndFlush(retMessage);
                 } else if (command.getType() == MethodType.Future) {// future<resp> call(req)

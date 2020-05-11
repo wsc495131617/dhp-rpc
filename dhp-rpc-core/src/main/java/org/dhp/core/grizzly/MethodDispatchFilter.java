@@ -13,7 +13,6 @@ import org.glassfish.grizzly.filterchain.NextAction;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 @Slf4j
@@ -62,7 +61,7 @@ public class MethodDispatchFilter extends BaseFilter {
                         retMessage.setStatus(MessageStatus.Updating);
                         retMessage.setCommand(command.getName());
                         retMessage.setMetadata(message.getMetadata());
-                        retMessage.setData(dealResult(command, value));
+                        retMessage.setData(MethodDispatchUtils.dealResult(command, value));
                         ctx.getConnection().write(retMessage);
                     }
 
@@ -71,7 +70,7 @@ public class MethodDispatchFilter extends BaseFilter {
                         retMessage.setId(message.getId());
                         retMessage.setStatus(MessageStatus.Failed);
                         retMessage.setCommand(command.getName());
-                        retMessage.setData(dealFailed(command, throwable));
+                        retMessage.setData(MethodDispatchUtils.dealFailed(command, throwable));
                         retMessage.setMetadata(message.getMetadata());
                         ctx.getConnection().write(retMessage);
                     }
@@ -117,7 +116,7 @@ public class MethodDispatchFilter extends BaseFilter {
                     retMessage.setId(message.getId());
                     retMessage.setStatus(MessageStatus.Completed);
                     retMessage.setMetadata(message.getMetadata());
-                    retMessage.setData(dealResult(command, result));
+                    retMessage.setData(MethodDispatchUtils.dealResult(command, result));
                     retMessage.setCommand(command.getName());
                     ctx.getConnection().write(retMessage);
                 } else if (command.getType() == MethodType.Future) {// future<resp> call(req)
