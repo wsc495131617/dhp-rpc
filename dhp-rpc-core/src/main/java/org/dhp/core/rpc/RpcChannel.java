@@ -18,6 +18,8 @@ public abstract class RpcChannel {
 
     public abstract void start();
 
+    public abstract void ping();
+
     public abstract boolean connect() throws TimeoutException;
 
     public abstract Integer write(String name, byte[] argBody, Stream<byte[]> stream);

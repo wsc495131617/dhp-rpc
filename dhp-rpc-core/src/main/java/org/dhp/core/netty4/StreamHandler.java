@@ -1,5 +1,6 @@
 package org.dhp.core.netty4;
 
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.dhp.core.rpc.Message;
@@ -11,11 +12,12 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@ChannelHandler.Sharable
 public class StreamHandler extends ChannelInboundHandlerAdapter {
 
-    AtomicInteger _ID = new AtomicInteger(1);
+    static AtomicInteger _ID = new AtomicInteger(1);
 
-    Map<Integer, CompletionHandler> handlerMap = new ConcurrentHashMap<>();
+    static Map<Integer, CompletionHandler> handlerMap = new ConcurrentHashMap<>();
 
     public Integer incrementAndGet() {
         return _ID.incrementAndGet();

@@ -1,12 +1,15 @@
 package org.dhp.core.rpc;
 
+import lombok.extern.slf4j.Slf4j;
 import org.dhp.core.spring.DhpProperties;
+import org.springframework.beans.factory.InitializingBean;
 
 import javax.annotation.Resource;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class RpcChannelPool {
+@Slf4j
+public class RpcChannelPool implements InitializingBean {
 
     @Resource
     DhpProperties properties;
@@ -33,4 +36,26 @@ public class RpcChannelPool {
         return channel;
     }
 
+    public void afterPropertiesSet() throws Exception {
+        Thread t = new Thread(()->{
+            while(true){
+                try{
+                    for(Map.Entry<String, RpcChannel> entry : allChannels.entrySet()){
+                        try {
+                            entry.getValue().ping();
+                        } catch (Throwable e){
+                            log.error(e.getMessage(), e);
+                        }
+                    }
+                    //15秒发起心跳
+                    Thread.sleep(15000);
+                } catch (Throwable e) {
+                    log.error(e.getMessage(), e);
+                }
+            }
+        });
+        t.setName("RpcChannelPool");
+        t.setDaemon(true);
+        t.start();
+    }
 }

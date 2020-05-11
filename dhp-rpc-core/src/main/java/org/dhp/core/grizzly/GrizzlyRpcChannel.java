@@ -1,8 +1,9 @@
 package org.dhp.core.grizzly;
 
 import lombok.extern.slf4j.Slf4j;
-import org.dhp.core.rpc.RpcChannel;
 import org.dhp.common.rpc.Stream;
+import org.dhp.core.rpc.MessageStatus;
+import org.dhp.core.rpc.RpcChannel;
 import org.dhp.core.spring.FrameworkException;
 import org.glassfish.grizzly.CompletionHandler;
 import org.glassfish.grizzly.filterchain.FilterChainBuilder;
@@ -74,6 +75,38 @@ public class GrizzlyRpcChannel extends RpcChannel {
             log.warn(e.getMessage(), e);
         }
         return false;
+    }
+
+    private long activeTime = System.currentTimeMillis();
+
+    public void ping() {
+        if(connection.isOpen()){
+            try {
+                this.connect();
+            } catch (TimeoutException e) {
+                log.warn("reconnect failed");
+            }
+        }
+        GrizzlyMessage message = new GrizzlyMessage();
+        message.setId(_ID.incrementAndGet());
+        message.setCommand("ping");
+        message.setData((System.currentTimeMillis()+"").getBytes());
+        message.setStatus(MessageStatus.Sending);
+        CompletionHandler completionHandler = new CompletionHandler<GrizzlyMessage>() {
+            public void cancelled() {
+            }
+            public void failed(Throwable throwable) {
+            }
+            public void completed(GrizzlyMessage message) {
+                activeTime = System.currentTimeMillis();
+                log.info("pong "+new String(message.getData()));
+            }
+            public void updated(GrizzlyMessage message) {
+                activeTime = System.currentTimeMillis();
+            }
+        };
+        streamFilter.setCompleteHandler(message.getId(), completionHandler);
+        this.connection.write(message);
     }
 
     public Integer write(String name, byte[] argBody, Stream<byte[]> messageStream) {

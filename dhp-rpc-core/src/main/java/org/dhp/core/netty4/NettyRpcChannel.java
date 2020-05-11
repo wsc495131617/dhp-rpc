@@ -7,6 +7,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
+import org.dhp.core.rpc.MessageStatus;
 import org.dhp.core.rpc.RpcChannel;
 import org.glassfish.grizzly.CompletionHandler;
 
@@ -64,6 +65,31 @@ public class NettyRpcChannel extends RpcChannel {
             this.channel = future.channel();
         }
         return true;
+    }
+
+    private long activeTime = System.currentTimeMillis();
+
+    public void ping() {
+        NettyMessage message = new NettyMessage();
+        message.setId(_ID.incrementAndGet());
+        message.setCommand("ping");
+        message.setData((System.currentTimeMillis()+"").getBytes());
+        message.setStatus(MessageStatus.Sending);
+        CompletionHandler completionHandler = new CompletionHandler<NettyMessage>() {
+            public void cancelled() {
+            }
+            public void failed(Throwable throwable) {
+            }
+            public void completed(NettyMessage message) {
+                activeTime = System.currentTimeMillis();
+                log.info("pong "+new String(message.getData()));
+            }
+            public void updated(NettyMessage message) {
+                activeTime = System.currentTimeMillis();
+            }
+        };
+        streamHandler.setCompleteHandler(message.getId(), completionHandler);
+        this.channel.writeAndFlush(message);
     }
 
     @Override
