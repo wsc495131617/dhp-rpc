@@ -201,11 +201,13 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
                 Class clas = (Class) type.getActualTypeArguments()[0];
                 return ProtostuffUtils.deserialize(result, clas);
             } else if (methodType == MethodType.Stream) {
-                Type[] paramTypes = method.getParameterTypes();
-                if (Stream.class.isAssignableFrom((Class) paramTypes[0])) {
-                    return ProtostuffUtils.deserialize(result, (Class) paramTypes[1]);
+                Type[] paramTypes = method.getGenericParameterTypes();
+                if(paramTypes[0] instanceof ParameterizedType){
+                    ParameterizedType pType = (ParameterizedType)paramTypes[0];
+                    return ProtostuffUtils.deserialize(result, (Class) pType.getActualTypeArguments()[0]);
                 } else {
-                    return ProtostuffUtils.deserialize(result, (Class) paramTypes[0]);
+                    ParameterizedType pType = (ParameterizedType)paramTypes[1];
+                    return ProtostuffUtils.deserialize(result, (Class) pType.getActualTypeArguments()[0]);
                 }
             }
         } catch (Throwable e) {

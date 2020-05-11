@@ -1,7 +1,6 @@
 package org.dhp.core.rpc;
 
 import lombok.extern.slf4j.Slf4j;
-import org.dhp.common.rpc.Stream;
 import org.dhp.common.utils.ProtostuffUtils;
 
 import java.lang.reflect.ParameterizedType;
@@ -30,11 +29,13 @@ public class MethodDispatchUtils {
                 Class clas = (Class)type.getActualTypeArguments()[0];
                 return ProtostuffUtils.serialize(clas, result);
             } else if(command.getType() == MethodType.Stream){
-                Type[] paramTypes = command.getMethod().getParameterTypes();
-                if(Stream.class.isAssignableFrom((Class)paramTypes[0])){
-                    return ProtostuffUtils.serialize((Class)paramTypes[1], result);
+                Type[] paramTypes = command.getMethod().getGenericParameterTypes();
+                if(paramTypes[0] instanceof ParameterizedType){
+                    ParameterizedType pType = (ParameterizedType)paramTypes[0];
+                    return ProtostuffUtils.serialize((Class) pType.getActualTypeArguments()[0], result);
                 } else {
-                    return ProtostuffUtils.serialize((Class)paramTypes[0], result);
+                    ParameterizedType pType = (ParameterizedType)paramTypes[1];
+                    return ProtostuffUtils.serialize((Class) pType.getActualTypeArguments()[0], result);
                 }
             }
         } catch (Throwable e){

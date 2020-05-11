@@ -45,45 +45,7 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
         } else {
             Type[] paramTypes = command.getMethod().getParameterTypes();
             if (command.getType() == MethodType.Stream) {// call(req, stream<resp>)
-                Stream stream = new Stream() {
-                    public void onCanceled() {
-                        NettyMessage retMessage = new NettyMessage();
-                        retMessage.setId(message.getId());
-                        retMessage.setStatus(MessageStatus.Canceled);
-                        retMessage.setMetadata(message.getMetadata());
-                        retMessage.setCommand(command.getName());
-                        ctx.channel().writeAndFlush(retMessage);
-                    }
-
-                    public void onNext(Object value) {
-                        NettyMessage retMessage = new NettyMessage();
-                        retMessage.setId(message.getId());
-                        retMessage.setStatus(MessageStatus.Updating);
-                        retMessage.setCommand(command.getName());
-                        retMessage.setMetadata(message.getMetadata());
-                        retMessage.setData(MethodDispatchUtils.dealResult(command, value));
-                        ctx.channel().writeAndFlush(retMessage);
-                    }
-
-                    public void onFailed(Throwable throwable) {
-                        NettyMessage retMessage = new NettyMessage();
-                        retMessage.setId(message.getId());
-                        retMessage.setStatus(MessageStatus.Failed);
-                        retMessage.setCommand(command.getName());
-                        retMessage.setData(MethodDispatchUtils.dealFailed(command, throwable));
-                        retMessage.setMetadata(message.getMetadata());
-                        ctx.channel().writeAndFlush(retMessage);
-                    }
-
-                    public void onCompleted() {
-                        NettyMessage retMessage = new NettyMessage();
-                        retMessage.setId(message.getId());
-                        retMessage.setStatus(MessageStatus.Completed);
-                        retMessage.setMetadata(message.getMetadata());
-                        retMessage.setCommand(command.getName());
-                        ctx.channel().writeAndFlush(retMessage);
-                    }
-                };
+                Stream stream = new NettyStream(ctx.channel(), command, message);
                 Object[] params;
                 if (Stream.class.isAssignableFrom((Class<?>) paramTypes[0])) {
                     params = new Object[]{stream, ProtostuffUtils.deserialize(message.getData(), (Class<?>) paramTypes[1])};
@@ -134,6 +96,57 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
             }
         }
         ctx.fireChannelReadComplete();
+    }
+
+    static class NettyStream<T> implements Stream<T> {
+
+        Channel channel;
+        ServerCommand command;
+        Message message;
+
+        public NettyStream(Channel channel, ServerCommand command, Message message){
+            this.channel = channel;
+            this.command = command;
+            this.message = message;
+        }
+
+        public void onCanceled() {
+            NettyMessage retMessage = new NettyMessage();
+            retMessage.setId(message.getId());
+            retMessage.setStatus(MessageStatus.Canceled);
+            retMessage.setMetadata(message.getMetadata());
+            retMessage.setCommand(command.getName());
+            channel.writeAndFlush(retMessage);
+        }
+
+        public void onNext(Object value) {
+            NettyMessage retMessage = new NettyMessage();
+            retMessage.setId(message.getId());
+            retMessage.setStatus(MessageStatus.Updating);
+            retMessage.setCommand(command.getName());
+            retMessage.setMetadata(message.getMetadata());
+            retMessage.setData(MethodDispatchUtils.dealResult(command, value));
+            channel.writeAndFlush(retMessage);
+        }
+
+        public void onFailed(Throwable throwable) {
+            NettyMessage retMessage = new NettyMessage();
+            retMessage.setId(message.getId());
+            retMessage.setStatus(MessageStatus.Failed);
+            retMessage.setCommand(command.getName());
+            retMessage.setData(MethodDispatchUtils.dealFailed(command, throwable));
+            retMessage.setMetadata(message.getMetadata());
+            channel.writeAndFlush(retMessage);
+        }
+
+        public void onCompleted() {
+            NettyMessage retMessage = new NettyMessage();
+            retMessage.setId(message.getId());
+            retMessage.setStatus(MessageStatus.Completed);
+            retMessage.setMetadata(message.getMetadata());
+            retMessage.setCommand(command.getName());
+            channel.writeAndFlush(retMessage);
+        }
     }
 
     public class NettyCompleteHandler implements CompleteHandler<Object> {

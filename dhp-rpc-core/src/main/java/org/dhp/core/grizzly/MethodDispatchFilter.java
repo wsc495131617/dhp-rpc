@@ -45,45 +45,7 @@ public class MethodDispatchFilter extends BaseFilter {
         } else {
             Type[] paramTypes = command.getMethod().getParameterTypes();
             if (command.getType() == MethodType.Stream) {// call(req, stream<resp>)
-                Stream stream = new Stream() {
-                    public void onCanceled() {
-                        GrizzlyMessage retMessage = new GrizzlyMessage();
-                        retMessage.setId(message.getId());
-                        retMessage.setStatus(MessageStatus.Canceled);
-                        retMessage.setMetadata(message.getMetadata());
-                        retMessage.setCommand(command.getName());
-                        ctx.getConnection().write(retMessage);
-                    }
-
-                    public void onNext(Object value) {
-                        GrizzlyMessage retMessage = new GrizzlyMessage();
-                        retMessage.setId(message.getId());
-                        retMessage.setStatus(MessageStatus.Updating);
-                        retMessage.setCommand(command.getName());
-                        retMessage.setMetadata(message.getMetadata());
-                        retMessage.setData(MethodDispatchUtils.dealResult(command, value));
-                        ctx.getConnection().write(retMessage);
-                    }
-
-                    public void onFailed(Throwable throwable) {
-                        GrizzlyMessage retMessage = new GrizzlyMessage();
-                        retMessage.setId(message.getId());
-                        retMessage.setStatus(MessageStatus.Failed);
-                        retMessage.setCommand(command.getName());
-                        retMessage.setData(MethodDispatchUtils.dealFailed(command, throwable));
-                        retMessage.setMetadata(message.getMetadata());
-                        ctx.getConnection().write(retMessage);
-                    }
-
-                    public void onCompleted() {
-                        GrizzlyMessage retMessage = new GrizzlyMessage();
-                        retMessage.setId(message.getId());
-                        retMessage.setStatus(MessageStatus.Completed);
-                        retMessage.setMetadata(message.getMetadata());
-                        retMessage.setCommand(command.getName());
-                        ctx.getConnection().write(retMessage);
-                    }
-                };
+                Stream stream = new GrizzlyStream(ctx.getConnection(), command, message);
                 Object[] params;
                 if (Stream.class.isAssignableFrom((Class<?>) paramTypes[0])) {
                     params = new Object[]{stream, ProtostuffUtils.deserialize(message.getData(), (Class<?>) paramTypes[1])};
@@ -134,6 +96,57 @@ public class MethodDispatchFilter extends BaseFilter {
             }
         }
         return ctx.getStopAction();
+    }
+
+    static class GrizzlyStream<T> implements Stream<T> {
+
+        Connection channel;
+        ServerCommand command;
+        Message message;
+
+        public GrizzlyStream(Connection channel, ServerCommand command, Message message){
+            this.channel = channel;
+            this.command = command;
+            this.message = message;
+        }
+
+        public void onCanceled() {
+            GrizzlyMessage retMessage = new GrizzlyMessage();
+            retMessage.setId(message.getId());
+            retMessage.setStatus(MessageStatus.Canceled);
+            retMessage.setMetadata(message.getMetadata());
+            retMessage.setCommand(command.getName());
+            channel.write(retMessage);
+        }
+
+        public void onNext(Object value) {
+            GrizzlyMessage retMessage = new GrizzlyMessage();
+            retMessage.setId(message.getId());
+            retMessage.setStatus(MessageStatus.Updating);
+            retMessage.setCommand(command.getName());
+            retMessage.setMetadata(message.getMetadata());
+            retMessage.setData(MethodDispatchUtils.dealResult(command, value));
+            channel.write(retMessage);
+        }
+
+        public void onFailed(Throwable throwable) {
+            GrizzlyMessage retMessage = new GrizzlyMessage();
+            retMessage.setId(message.getId());
+            retMessage.setStatus(MessageStatus.Failed);
+            retMessage.setCommand(command.getName());
+            retMessage.setData(MethodDispatchUtils.dealFailed(command, throwable));
+            retMessage.setMetadata(message.getMetadata());
+            channel.write(retMessage);
+        }
+
+        public void onCompleted() {
+            GrizzlyMessage retMessage = new GrizzlyMessage();
+            retMessage.setId(message.getId());
+            retMessage.setStatus(MessageStatus.Completed);
+            retMessage.setMetadata(message.getMetadata());
+            retMessage.setCommand(command.getName());
+            channel.write(retMessage);
+        }
     }
 
     public class GrizzlyCompleteHandler implements CompleteHandler<Object> {
