@@ -26,7 +26,7 @@ public class RpcChannelBuilder {
     }
 
     public RpcChannelBuilder setTimeout(long timeout) {
-        if(timeout>0)
+        if (timeout > 0)
             this.timeout = timeout;
         return this;
     }
@@ -38,7 +38,7 @@ public class RpcChannelBuilder {
 
     public RpcChannel build() {
         RpcChannel channel;
-        if(this.type == ChannelType.Grizzly){
+        if (this.type == ChannelType.Grizzly) {
             channel = new GrizzlyRpcChannel();
         } else {
             channel = new NettyRpcChannel();

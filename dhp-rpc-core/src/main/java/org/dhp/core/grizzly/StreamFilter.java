@@ -24,10 +24,10 @@ public class StreamFilter extends BaseFilter {
 
     public NextAction handleRead(FilterChainContext ctx) throws IOException {
         GrizzlyMessage message = ctx.getMessage();
-        if(handlerMap.containsKey(message.getId())){
+        if (handlerMap.containsKey(message.getId())) {
             CompletionHandler handler = handlerMap.get(message.getId());
             MessageStatus status = message.getStatus();
-            switch (status){
+            switch (status) {
                 case Canceled:
                     handler.cancelled();
                     break;
@@ -49,7 +49,7 @@ public class StreamFilter extends BaseFilter {
         return ctx.getStopAction();
     }
 
-    public Throwable dealThrowable(GrizzlyMessage message){
+    public Throwable dealThrowable(GrizzlyMessage message) {
         return null;
     }
 

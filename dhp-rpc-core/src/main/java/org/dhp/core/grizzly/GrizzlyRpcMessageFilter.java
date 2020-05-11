@@ -18,43 +18,39 @@ public class GrizzlyRpcMessageFilter extends BaseFilter {
         //当前消息长度
         int sourceBufferLength = buffer.remaining();
         //消息小于4，不符合标准
-        if(buffer.remaining()< Message.HEAD_LEN) {
+        if (buffer.remaining() < Message.HEAD_LEN) {
             return ctx.getStopAction(buffer);
         }
         //消息长度
         int len = buffer.getInt(0);
-        if(len>Message.MAX_PACKET_LEN) {
+        if (len > Message.MAX_PACKET_LEN) {
             byte[] bytes = new byte[buffer.limit()];
             buffer.get(bytes);
-            log.error("Buffer String：{}",new String(bytes));
+            log.error("Buffer String：{}", new String(bytes));
             log.error("PeerAddress:{}", ((TCPNIOConnection) ctx.getConnection()).getPeerAddress());
-            log.error("Out of max packet len: {}，{} close {}!",len, buffer, ctx.getConnection());
+            log.error("Out of max packet len: {}，{} close {}!", len, buffer, ctx.getConnection());
             ctx.getConnection().close();
             return ctx.getStopAction();
         }
         //包不足
-        if(buffer.remaining()<len) {
+        if (buffer.remaining() < len) {
             return ctx.getStopAction(buffer);
-        }
-        else
-        {
-            Buffer remain = sourceBufferLength>len?buffer.split(len):null;
+        } else {
+            Buffer remain = sourceBufferLength > len ? buffer.split(len) : null;
             try {
                 GrizzlyMessage msg = new GrizzlyMessage(buffer);
                 ctx.setMessage(msg);
             } catch (Exception e) {
                 log.error(e.getMessage(), e);
-                if(remain != null) {
+                if (remain != null) {
                     return ctx.getInvokeAction(remain);
                 } else {
                     return ctx.getStopAction();
                 }
             }
-            if(remain != null) {
+            if (remain != null) {
                 return ctx.getInvokeAction(remain);
-            }
-            else
-            {
+            } else {
                 return ctx.getInvokeAction();
             }
         }

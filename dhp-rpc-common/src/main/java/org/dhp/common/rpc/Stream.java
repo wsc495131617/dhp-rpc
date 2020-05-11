@@ -1,4 +1,4 @@
-package org.dhp.core.rpc;
+package org.dhp.common.rpc;
 
 public interface Stream<T> {
 

@@ -37,11 +37,11 @@ public class DhpClientRegister implements ImportBeanDefinitionRegistrar, Resourc
     private BeanFactory beanFactory;
 
     public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
-        Map<String, Object> annotationAttributes = importingClassMetadata.getAnnotationAttributes(DService.class.getName());
+        Map<String, Object> annotationAttributes = importingClassMetadata.getAnnotationAttributes(EnableDhpRpcClient.class.getName());
         ClassPathScanningCandidateComponentProvider scanner = getClassScanner();
         String[] basePackages = null;
-        if(annotationAttributes != null ){
-            basePackages = (String[])annotationAttributes.get("basePackages");
+        if (annotationAttributes != null) {
+            basePackages = (String[]) annotationAttributes.get("basePackages");
         }
         if (basePackages == null || basePackages.length == 0) {//PrintServiceScan的basePackages默认为空数组
             String basePackage = null;
@@ -50,24 +50,24 @@ public class DhpClientRegister implements ImportBeanDefinitionRegistrar, Resourc
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             }
-            basePackages = new String[] {basePackage};
+            basePackages = new String[]{basePackage};
         }
         AnnotationTypeFilter filter = new AnnotationTypeFilter(DService.class);
         scanner.addIncludeFilter(filter);
-        for(String basePackage : basePackages) {
+        for (String basePackage : basePackages) {
             Set<BeanDefinition> comps = scanner.findCandidateComponents(basePackage);
-            for(BeanDefinition compDefinition : comps){
+            for (BeanDefinition compDefinition : comps) {
                 try {
-                    if(compDefinition instanceof AnnotatedBeanDefinition){
+                    if (compDefinition instanceof AnnotatedBeanDefinition) {
                         RootBeanDefinition rbd = new RootBeanDefinition(ClientProxyFactoryBean.class);
                         MutablePropertyValues propertyValues = new MutablePropertyValues();
                         propertyValues.add("className", compDefinition.getBeanClassName());
                         rbd.setPropertyValues(propertyValues);
-                        ((BeanDefinitionRegistry) this.beanFactory).registerBeanDefinition("proxy_"+compDefinition.getBeanClassName(), rbd);
+                        ((BeanDefinitionRegistry) this.beanFactory).registerBeanDefinition("proxy_" + compDefinition.getBeanClassName(), rbd);
                     } else {
                         log.debug("skip component definition: {}", compDefinition);
                     }
-                } catch (Throwable e){
+                } catch (Throwable e) {
                     log.error(e.getMessage(), e);
                 }
             }
@@ -99,7 +99,7 @@ public class DhpClientRegister implements ImportBeanDefinitionRegistrar, Resourc
         };
     }
 
-        @Override
+    @Override
     public void setResourceLoader(ResourceLoader resourceLoader) {
         this.resourceLoader = resourceLoader;
     }

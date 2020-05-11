@@ -3,6 +3,7 @@ package org.dhp.core.rpc;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.annotation.DMethod;
 import org.dhp.common.annotation.DService;
+import org.dhp.common.rpc.ListenableFuture;
 import org.dhp.core.spring.FrameworkException;
 import org.springframework.util.StringUtils;
 
@@ -23,7 +24,7 @@ public class RpcServerMethodManager {
         log.info("Add Service {}", cls.getName());
         Method[] methods = cls.getDeclaredMethods();
         DService dService = cls.getAnnotation(DService.class);
-        for(Method method : methods){
+        for (Method method : methods) {
             addMethod(method, bean, cls);
         }
     }
@@ -37,7 +38,7 @@ public class RpcServerMethodManager {
         String methodName = method.getName();
         String className = method.getDeclaringClass().getName();
 
-        String commandName = className+":"+methodName;
+        String commandName = className + ":" + methodName;
         DMethod dm = method.getAnnotation(DMethod.class);
         //if defined Dmethod annotation, use dmethod to send
         if (dm != null && !StringUtils.isEmpty(dm.command())) {
@@ -53,8 +54,8 @@ public class RpcServerMethodManager {
         //入参为1个
         if (args.length == 1) {
             //一定要是ListenableFuture
-            if(returnType instanceof ParameterizedType){
-                if(ListenableFuture.class.isAssignableFrom((Class<?>)((ParameterizedType)returnType).getRawType())){
+            if (returnType instanceof ParameterizedType) {
+                if (ListenableFuture.class.isAssignableFrom((Class<?>) ((ParameterizedType) returnType).getRawType())) {
                     methodType = MethodType.Future;
                 } else {
                     throw new FrameworkException("Method ParameterizedType Return must be ListenableFuture");

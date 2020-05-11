@@ -20,23 +20,23 @@ public class NettyMessage extends Message {
     public NettyMessage() {
     }
 
-    String readString(ByteBuf buf){
+    String readString(ByteBuf buf) {
         int len = buf.readByte();
         byte[] bytes = new byte[len];
         buf.readBytes(bytes);
         return new String(bytes);
     }
 
-    int writeString(ByteBufOutputStream outputStream, String command){
+    int writeString(ByteBufOutputStream outputStream, String command) {
         byte[] bytes = command.getBytes();
         int len = bytes.length;
         try {
-            outputStream.write((byte)len);
+            outputStream.write((byte) len);
             outputStream.write(bytes);
         } catch (IOException e) {
             log.error(e.getMessage(), e);
         }
-        return len+1;
+        return len + 1;
     }
 
     protected void unpack(ByteBuf buf) {
@@ -65,12 +65,12 @@ public class NettyMessage extends Message {
         ByteBufOutputStream outputStream = new ByteBufOutputStream(Unpooled.buffer());
         int headLen = writeString(outputStream, getCommand());
         MetaData metadata = getMetadata();
-        if(metadata != null) {
+        if (metadata != null) {
             int len = 1;
             Map<Integer, String> data = metadata.getData();
             try {
                 outputStream.writeByte(data.size());
-                for(Integer key : data.keySet()){
+                for (Integer key : data.keySet()) {
                     outputStream.writeInt(key);
                     len += 4;
                     byte[] bytes = data.get(key).getBytes();
@@ -86,7 +86,7 @@ public class NettyMessage extends Message {
             }
         } else {
             try {
-                outputStream.write((byte)-1);
+                outputStream.write((byte) -1);
                 outputStream.flush();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -96,16 +96,16 @@ public class NettyMessage extends Message {
 
         int bodyLen = 0;
         byte[] data = this.getData();
-        if(data != null){
+        if (data != null) {
             bodyLen = this.getData().length;
         }
-        int length = headLen+bodyLen+HEAD_LEN;
+        int length = headLen + bodyLen + HEAD_LEN;
         ByteBuf buffer = Unpooled.buffer();
         buffer.writeInt(length);
         buffer.writeInt(this.getId());
         buffer.writeByte(this.getStatus().getId());
         buffer.writeBytes(outputStream.buffer());
-        if(data != null)
+        if (data != null)
             buffer.writeBytes(data);
         return buffer;
     }

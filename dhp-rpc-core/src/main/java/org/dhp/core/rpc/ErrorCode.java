@@ -10,6 +10,7 @@ public enum ErrorCode {
         this.code = code;
         this.message = msg;
     }
+
     int code;
     String message;
 

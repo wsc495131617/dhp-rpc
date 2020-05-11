@@ -1,0 +1,10 @@
+dhp:
+  #  type: Netty
+  nodes:
+    - name: default
+      host: 127.0.0.1
+      port: 6001
+      filters:
+        - "org.dhp.examples.rpcdemo.client"
+server:
+  port: 8002

@@ -13,7 +13,7 @@ public class MessageTests {
     int TOTAL = 3000000;
 
     @Test
-    public void grizzlyMessage(){
+    public void grizzlyMessage() {
         GrizzlyMessage msg = new GrizzlyMessage();
         msg.setId(1);
         msg.setCommand("test");
@@ -36,7 +36,7 @@ public class MessageTests {
         log.info("msg:{}", msg);
 
         long st = System.currentTimeMillis();
-        for(int i=0;i<TOTAL;i++){
+        for (int i = 0; i < TOTAL; i++) {
             msg = new GrizzlyMessage();
             msg.setId(1);
             msg.setCommand("test");
@@ -54,11 +54,11 @@ public class MessageTests {
             buffer = msg.pack();
             msg = new GrizzlyMessage(buffer);
         }
-        System.out.println("cost: "+(System.currentTimeMillis()-st)+"ms");
+        System.out.println("cost: " + (System.currentTimeMillis() - st) + "ms");
     }
 
     @Test
-    public void nettyMessage(){
+    public void nettyMessage() {
         NettyMessage msg = new NettyMessage();
         msg.setId(1);
         msg.setCommand("test");
@@ -81,7 +81,7 @@ public class MessageTests {
         log.info("msg:{}", msg);
 
         long st = System.currentTimeMillis();
-        for(int i=0;i<TOTAL;i++){
+        for (int i = 0; i < TOTAL; i++) {
             msg = new NettyMessage();
             msg.setId(1);
             msg.setCommand("test");
@@ -99,7 +99,7 @@ public class MessageTests {
             buffer = msg.pack();
             msg = new NettyMessage(buffer);
         }
-        System.out.println("cost: "+(System.currentTimeMillis()-st)+"ms");
+        System.out.println("cost: " + (System.currentTimeMillis() - st) + "ms");
 
     }
 }

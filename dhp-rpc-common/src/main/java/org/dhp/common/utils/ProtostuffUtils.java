@@ -11,8 +11,8 @@ public class ProtostuffUtils {
 
     static Map<Class, RuntimeSchema> cacheSchema = new ConcurrentHashMap<>();
 
-    static RuntimeSchema getSchema(Class cls){
-        if(cacheSchema.containsKey(cls)){
+    static RuntimeSchema getSchema(Class cls) {
+        if (cacheSchema.containsKey(cls)) {
             return cacheSchema.get(cls);
         }
         RuntimeSchema schema = RuntimeSchema.createFrom(cls);
@@ -30,7 +30,7 @@ public class ProtostuffUtils {
         return _serialize(source, schema);
     }
 
-    static <T> byte[] _serialize(T source, RuntimeSchema<T> schema){
+    static <T> byte[] _serialize(T source, RuntimeSchema<T> schema) {
         LinkedBuffer buffer = null;
         byte[] result;
         try {

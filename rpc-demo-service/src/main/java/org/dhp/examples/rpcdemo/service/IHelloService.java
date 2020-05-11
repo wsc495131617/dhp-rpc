@@ -1,11 +1,11 @@
-package org.dhp.examples.rpcdemo.client;
+package org.dhp.examples.rpcdemo.service;
 
-import org.dhp.common.annotation.DMethod;
-import org.dhp.common.annotation.DService;
-import org.dhp.core.rpc.ListenableFuture;
-import org.dhp.core.rpc.Stream;
 import org.dhp.examples.rpcdemo.pojo.HelloRequest;
 import org.dhp.examples.rpcdemo.pojo.HelloResponse;
+import org.dhp.common.annotation.DMethod;
+import org.dhp.common.annotation.DService;
+import org.dhp.common.rpc.ListenableFuture;
+import org.dhp.common.rpc.Stream;
 
 @DService
 public interface IHelloService {

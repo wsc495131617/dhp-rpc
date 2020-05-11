@@ -5,6 +5,9 @@
 
 package org.dhp.core.rpc;
 
+import org.dhp.common.rpc.CompleteHandler;
+import org.dhp.common.rpc.ListenableFuture;
+
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -23,7 +26,7 @@ public class FutureImpl<R> implements ListenableFuture<R> {
         if (this.isDone()) {
             this.notifyCompleteHandler(CompleteHandler);
         } else {
-            synchronized(this.chSync) {
+            synchronized (this.chSync) {
                 if (!this.isDone()) {
                     if (this.CompleteHandlers == null) {
                         this.CompleteHandlers = new HashSet(2);
@@ -81,7 +84,7 @@ public class FutureImpl<R> implements ListenableFuture<R> {
         assert this.isDone();
 
         Set localSet;
-        synchronized(this.chSync) {
+        synchronized (this.chSync) {
             if (this.CompleteHandlers == null) {
                 return;
             }
@@ -95,8 +98,8 @@ public class FutureImpl<R> implements ListenableFuture<R> {
         Throwable error = this.sync.exception;
         Iterator it = localSet.iterator();
 
-        while(it.hasNext()) {
-            CompleteHandler<R> CompleteHandler = (CompleteHandler)it.next();
+        while (it.hasNext()) {
+            CompleteHandler<R> CompleteHandler = (CompleteHandler) it.next();
             it.remove();
 
             try {
@@ -121,7 +124,7 @@ public class FutureImpl<R> implements ListenableFuture<R> {
                 Object result = this.get();
 
                 try {
-                    CompleteHandler.onCompleted((R)result);
+                    CompleteHandler.onCompleted((R) result);
                 } catch (Exception var4) {
                 }
             } catch (ExecutionException var5) {

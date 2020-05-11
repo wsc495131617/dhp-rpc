@@ -1,4 +1,4 @@
-package org.dhp.core.rpc;
+package org.dhp.common.rpc;
 
 import java.util.concurrent.Future;
 

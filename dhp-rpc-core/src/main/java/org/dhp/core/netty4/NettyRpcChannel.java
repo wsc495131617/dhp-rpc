@@ -7,7 +7,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.core.rpc.RpcChannel;
-import org.dhp.core.rpc.Stream;
+import org.dhp.common.rpc.Stream;
 import org.glassfish.grizzly.CompletionHandler;
 
 import java.util.concurrent.TimeoutException;
@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 public class NettyRpcChannel extends RpcChannel {
 
-    final static EventLoopGroup group = new NioEventLoopGroup(16);
+    final static EventLoopGroup group = new NioEventLoopGroup();
 
     static Bootstrap b;
 
@@ -31,6 +31,8 @@ public class NettyRpcChannel extends RpcChannel {
         streamHandler = new StreamHandler();
         if (b == null) {
             b = new Bootstrap();
+            b.option(ChannelOption.SO_KEEPALIVE, true);
+            b.option(ChannelOption.TCP_NODELAY, true);
             b.group(group).channel(NioSocketChannel.class)
                     .handler(new ChannelInitializer<SocketChannel>() {
                         public void initChannel(SocketChannel ch) throws Exception {
@@ -48,7 +50,7 @@ public class NettyRpcChannel extends RpcChannel {
     }
 
     public boolean connect() throws TimeoutException {
-        if(channel == null || !channel.isOpen()){
+        if (channel == null || !channel.isOpen()) {
             ChannelFuture future = null;
             try {
                 future = b.connect(this.getHost(), this.getPort()).sync();
@@ -56,7 +58,7 @@ public class NettyRpcChannel extends RpcChannel {
             }
             future.addListener(new ChannelFutureListener() {
                 public void operationComplete(ChannelFuture channelFuture) throws Exception {
-                    if(channelFuture.isSuccess()){
+                    if (channelFuture.isSuccess()) {
                         log.info("Connect {},{},{} success", getName(), getHost(), getPort());
                     } else {
                         log.error("Error", channelFuture.cause());
@@ -78,13 +80,16 @@ public class NettyRpcChannel extends RpcChannel {
             public void cancelled() {
                 messageStream.onCanceled();
             }
+
             public void failed(Throwable throwable) {
                 messageStream.onFailed(throwable);
             }
+
             public void completed(NettyMessage message) {
                 messageStream.onNext(message.getData());
                 messageStream.onCompleted();
             }
+
             public void updated(NettyMessage message) {
                 messageStream.onNext(message.getData());
             }

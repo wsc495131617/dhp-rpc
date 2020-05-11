@@ -1,6 +1,7 @@
 package org.dhp.core.rpc;
 
 import lombok.Data;
+import org.dhp.common.rpc.Stream;
 
 import java.util.concurrent.TimeoutException;
 
@@ -16,6 +17,7 @@ public abstract class RpcChannel {
     ChannelType type;
 
     public abstract void start();
+
     public abstract boolean connect() throws TimeoutException;
 
     public abstract Integer write(String name, byte[] argBody, Stream<byte[]> stream);

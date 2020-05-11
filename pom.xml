@@ -10,6 +10,7 @@
     <modules>
         <module>dhp-rpc-core</module>
         <module>dhp-rpc-common</module>
+        <module>rpc-demo-service</module>
     </modules>
     <packaging>pom</packaging>
     <dependencies>

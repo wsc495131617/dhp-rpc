@@ -22,11 +22,11 @@ public class RpcServer implements InitializingBean {
     IRpcServer server;
 
     public void afterPropertiesSet() throws Exception {
-        if(dhpProperties.port <= 0 || dhpProperties.port > 65535){
+        if (dhpProperties.port <= 0 || dhpProperties.port > 65535) {
             throw new FrameworkException("Invaild server port, must between 1-65535");
         }
-        if(server == null){
-            if(dhpProperties.type == ChannelType.Netty) {
+        if (server == null) {
+            if (dhpProperties.type == ChannelType.Netty) {
                 server = new NettyRpcServer(dhpProperties.port);
             } else {
                 server = new GrizzlyRpcServer(dhpProperties.port);

@@ -2,7 +2,7 @@ package org.dhp.core.grizzly;
 
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.core.rpc.RpcChannel;
-import org.dhp.core.rpc.Stream;
+import org.dhp.common.rpc.Stream;
 import org.dhp.core.spring.FrameworkException;
 import org.glassfish.grizzly.CompletionHandler;
 import org.glassfish.grizzly.filterchain.FilterChainBuilder;
@@ -32,7 +32,7 @@ public class GrizzlyRpcChannel extends RpcChannel {
     @Override
     public void start() {
         streamFilter = new StreamFilter();
-        if(transport == null){
+        if (transport == null) {
             TCPNIOTransportBuilder builder = TCPNIOTransportBuilder.newInstance();
             FilterChainBuilder fbuilder = FilterChainBuilder.stateless();
             fbuilder.add(new TransportFilter());
@@ -62,7 +62,7 @@ public class GrizzlyRpcChannel extends RpcChannel {
     }
 
     public boolean connect() throws TimeoutException {
-        if(connection != null && connection.isOpen() && connection.canWrite()){
+        if (connection != null && connection.isOpen() && connection.canWrite()) {
             return true;
         }
         try {
@@ -85,13 +85,16 @@ public class GrizzlyRpcChannel extends RpcChannel {
             public void cancelled() {
                 messageStream.onCanceled();
             }
+
             public void failed(Throwable throwable) {
                 messageStream.onFailed(throwable);
             }
+
             public void completed(GrizzlyMessage message) {
                 messageStream.onNext(message.getData());
                 messageStream.onCompleted();
             }
+
             public void updated(GrizzlyMessage message) {
                 messageStream.onNext(message.getData());
             }

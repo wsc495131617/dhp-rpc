@@ -1,6 +1,7 @@
 package org.dhp.core.netty4;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
@@ -21,7 +22,7 @@ public class NettyRpcServer implements IRpcServer {
         final ServerBootstrap serverBootstrap = new ServerBootstrap();
 
         EventLoopGroup boss = new NioEventLoopGroup(1);
-        EventLoopGroup worker = new NioEventLoopGroup(16);
+        EventLoopGroup worker = new NioEventLoopGroup(Runtime.getRuntime().availableProcessors() * 2);
 
         serverBootstrap.group(boss, worker);
         serverBootstrap.channel(NioServerSocketChannel.class);
@@ -35,12 +36,13 @@ public class NettyRpcServer implements IRpcServer {
             }
         });
 
-        serverBootstrap.option(ChannelOption.SO_BACKLOG, 65535);         //连接缓冲池的大小
+        serverBootstrap.option(ChannelOption.SO_BACKLOG, 4096);         //连接缓冲池的大小
+        serverBootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         serverBootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);//维持链接的活跃，清除死链接
         serverBootstrap.childOption(ChannelOption.TCP_NODELAY, true);//关闭延迟发送
 
         //7.5.监听关闭
-        Thread t = new Thread(()->{
+        Thread t = new Thread(() -> {
             try {
                 //7.绑定ip和port
                 ChannelFuture channelFuture = serverBootstrap.bind("0.0.0.0", port).sync();//Future模式的channel对象

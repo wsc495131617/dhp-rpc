@@ -15,4 +15,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Import({DhpClientRegister.class, ClientProxyInvokeHandler.class, RpcChannelPool.class})
 public @interface EnableDhpRpcClient {
+    String[] basePackages() default {};
 }

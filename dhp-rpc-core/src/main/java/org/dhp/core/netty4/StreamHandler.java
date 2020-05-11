@@ -48,7 +48,8 @@ public class StreamHandler extends ChannelInboundHandlerAdapter {
 
         }
     }
-    public Throwable dealThrowable(Message message){
+
+    public Throwable dealThrowable(Message message) {
         return null;
     }
 

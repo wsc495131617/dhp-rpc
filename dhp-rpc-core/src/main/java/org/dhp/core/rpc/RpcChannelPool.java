@@ -15,7 +15,7 @@ public class RpcChannelPool {
 
     public RpcChannel getChannel(Node node) {
         //if existed
-        if(allChannels.containsKey(node.getName())){
+        if (allChannels.containsKey(node.getName())) {
             return allChannels.get(node.getName());
         }
         RpcChannel channel = new RpcChannelBuilder()
@@ -26,7 +26,7 @@ public class RpcChannelPool {
                 .setType(properties.getType())
                 .build();
         RpcChannel old = allChannels.putIfAbsent(node.getName(), channel);
-        if(old != null){
+        if (old != null) {
             channel = old;
         }
         //加入到BeanFactory

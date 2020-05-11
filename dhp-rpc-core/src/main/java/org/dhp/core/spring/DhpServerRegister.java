@@ -7,14 +7,11 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
-import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.context.ResourceLoaderAware;
-import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.ResourceLoader;
-import org.springframework.util.ClassUtils;
 
 import javax.annotation.Resource;
 
@@ -36,41 +33,20 @@ public class DhpServerRegister implements BeanPostProcessor, ResourceLoaderAware
     public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
         Class<?>[] clslist = bean.getClass().getInterfaces();
         Class<?> interCls = null;
-        for(Class<?> cls : clslist){
+        for (Class<?> cls : clslist) {
             DService an = cls.getAnnotation(DService.class);
-            if(an != null){
+            if (an != null) {
                 interCls = cls;
                 break;
             }
         }
-        if(interCls != null){
+        if (interCls != null) {
             methodManager.addServiceBean(bean, interCls);
         }
         return bean;
     }
 
-    private ClassPathScanningCandidateComponentProvider getClassScanner() {
-        return new ClassPathScanningCandidateComponentProvider(false, this.environment) {
-
-            @Override
-            protected boolean isCandidateComponent(
-                    AnnotatedBeanDefinition beanDefinition) {
-                if (beanDefinition.getMetadata().isInterface()) {
-                    try {
-                        Class<?> target = ClassUtils.forName(
-                                beanDefinition.getMetadata().getClassName(),
-                                classLoader);
-                        return !target.isAnnotation();
-                    } catch (Exception ex) {
-                        log.error("load class exception:", ex);
-                    }
-                }
-                return false;
-            }
-        };
-    }
-
-        @Override
+    @Override
     public void setResourceLoader(ResourceLoader resourceLoader) {
         this.resourceLoader = resourceLoader;
     }

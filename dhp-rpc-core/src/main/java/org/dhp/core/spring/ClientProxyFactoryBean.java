@@ -10,57 +10,57 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.cglib.proxy.Proxy;
 
 @Slf4j
-public class ClientProxyFactoryBean implements FactoryBean<Object>,InitializingBean, BeanFactoryAware {
-	
-	String className;
+public class ClientProxyFactoryBean implements FactoryBean<Object>, InitializingBean, BeanFactoryAware {
 
-	Class<?> classType;
+    String className;
 
-	public String getClassName() {
-		return className;
-	}
+    Class<?> classType;
 
-	public void setClassName(String className) {
-		this.className = className;
-	}
+    public String getClassName() {
+        return className;
+    }
 
-	Object proxy;
-	
-	@Override
-	public Object getObject() throws Exception {
-		return proxy;
-	}
+    public void setClassName(String className) {
+        this.className = className;
+    }
 
-	@Override
-	public Class<?> getObjectType() {
-		return classType;
-	}
+    Object proxy;
 
-	@Override
-	public boolean isSingleton() {
-		return true;
-	}
+    @Override
+    public Object getObject() throws Exception {
+        return proxy;
+    }
 
-	@Override
-	public void afterPropertiesSet() throws Exception {
-		try {
-			classType = Class.forName(className);
-			this.proxy = createProxy();
-		} catch (Exception e) {
-			log.error(e.getMessage(), e);
-		}
-	}
+    @Override
+    public Class<?> getObjectType() {
+        return classType;
+    }
 
-	private Object createProxy(){
-		ClientProxyInvokeHandler invocationHandler = beanFactory.getBean(ClientProxyInvokeHandler.class);
-		Object proxy = Proxy.newProxyInstance(DService.class.getClassLoader(), new Class[]{classType}, invocationHandler);
-		return proxy;
-	}
+    @Override
+    public boolean isSingleton() {
+        return true;
+    }
 
-	BeanFactory beanFactory;
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        try {
+            classType = Class.forName(className);
+            this.proxy = createProxy();
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        }
+    }
 
-	@Override
-	public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
-		this.beanFactory = beanFactory;
-	}
+    private Object createProxy() {
+        ClientProxyInvokeHandler invocationHandler = beanFactory.getBean(ClientProxyInvokeHandler.class);
+        Object proxy = Proxy.newProxyInstance(DService.class.getClassLoader(), new Class[]{classType}, invocationHandler);
+        return proxy;
+    }
+
+    BeanFactory beanFactory;
+
+    @Override
+    public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
+        this.beanFactory = beanFactory;
+    }
 }
