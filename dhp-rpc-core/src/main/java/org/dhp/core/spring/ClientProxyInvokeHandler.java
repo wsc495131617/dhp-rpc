@@ -3,7 +3,7 @@ package org.dhp.core.spring;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.annotation.DMethod;
 import org.dhp.common.annotation.DService;
-import org.dhp.common.rpc.ListenableFuture;
+import org.dhp.common.rpc.StreamFuture;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.rpc.*;
@@ -121,7 +121,7 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
         //入参为1个
         if (args.length == 1) {
             future = new FutureImpl();
-            if (ListenableFuture.class.isAssignableFrom((Class) returnType)) {
+            if (StreamFuture.class.isAssignableFrom((Class) returnType)) {
                 methodType = MethodType.Future;
             } else {
                 methodType = MethodType.Default;
@@ -143,7 +143,7 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
         Stream finalArgStream = argStream;
         FutureImpl finalFuture = future;
         MethodType finalMethodType1 = methodType;
-        Stream<byte[]> stream = new Stream<byte[]>() {
+        Stream<Message> stream = new Stream<Message>() {
             public void onCanceled() {
                 if (finalMethodType == MethodType.Stream) {
                     finalArgStream.onCanceled();
@@ -152,8 +152,8 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
                 }
             }
 
-            public void onNext(byte[] value) {
-                Object ret = dealResult(finalMethodType1, method, value);
+            public void onNext(Message value) {
+                Object ret = dealResult(finalMethodType1, method, value.getData());
                 if (finalMethodType == MethodType.Stream) {
                     finalArgStream.onNext(ret);
                 } else {
@@ -223,7 +223,7 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
      * @param argBody
      * @return
      */
-    protected Integer sendMessage(Command command, byte[] argBody, Stream<byte[]> stream) {
+    protected Integer sendMessage(Command command, byte[] argBody, Stream<Message> stream) {
         Node node = getNode(command);
         if(node == null){
             throw new RpcException(RpcErrorCode.NODE_NOT_FOUND);

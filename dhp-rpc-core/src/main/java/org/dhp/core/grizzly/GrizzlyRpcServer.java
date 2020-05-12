@@ -12,9 +12,10 @@ import java.io.IOException;
 
 public class GrizzlyRpcServer implements IRpcServer {
     int port;
-
+    GrizzlySessionManager sessionManager;
     public GrizzlyRpcServer(int port) {
         this.port = port;
+        this.sessionManager = new GrizzlySessionManager();
     }
 
     public void start(RpcServerMethodManager methodManager) throws IOException {
@@ -22,7 +23,7 @@ public class GrizzlyRpcServer implements IRpcServer {
         FilterChainBuilder fbuilder = FilterChainBuilder.stateless();
         fbuilder.add(new TransportFilter());
         fbuilder.add(new GrizzlyRpcMessageFilter());
-        fbuilder.add(new MethodDispatchFilter(methodManager));
+        fbuilder.add(new MethodDispatchFilter(methodManager, sessionManager));
 
         builder.setProcessor(fbuilder.build());
         builder.setKeepAlive(true);

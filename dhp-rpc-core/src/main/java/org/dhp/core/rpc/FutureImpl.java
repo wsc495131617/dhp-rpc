@@ -5,8 +5,9 @@
 
 package org.dhp.core.rpc;
 
-import org.dhp.common.rpc.CompleteHandler;
-import org.dhp.common.rpc.ListenableFuture;
+import lombok.extern.slf4j.Slf4j;
+import org.dhp.common.rpc.Stream;
+import org.dhp.common.rpc.StreamFuture;
 
 import java.util.HashSet;
 import java.util.Iterator;
@@ -17,27 +18,28 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
-public class FutureImpl<R> implements ListenableFuture<R> {
+@Slf4j
+public class FutureImpl<R> implements StreamFuture<R> {
     private final Object chSync = new Object();
-    private Set<CompleteHandler<R>> CompleteHandlers;
+    private Set<Stream<R>> streams;
     private final FutureImpl<R>.Sync sync = new FutureImpl.Sync();
 
-    public void addCompleteHandler(CompleteHandler<R> CompleteHandler) {
+    public void addStream(Stream<R> stream) {
         if (this.isDone()) {
-            this.notifyCompleteHandler(CompleteHandler);
+            this.notifyStream(stream);
         } else {
             synchronized (this.chSync) {
                 if (!this.isDone()) {
-                    if (this.CompleteHandlers == null) {
-                        this.CompleteHandlers = new HashSet(2);
+                    if (this.streams == null) {
+                        this.streams = new HashSet(2);
                     }
 
-                    this.CompleteHandlers.add(CompleteHandler);
+                    this.streams.add(stream);
                     return;
                 }
             }
 
-            this.notifyCompleteHandler(CompleteHandler);
+            this.notifyStream(stream);
         }
 
     }
@@ -80,17 +82,17 @@ public class FutureImpl<R> implements ListenableFuture<R> {
     protected void onComplete() {
     }
 
-    private void notifyCompleteHandlers() {
+    private void notifyStreams() {
         assert this.isDone();
 
         Set localSet;
         synchronized (this.chSync) {
-            if (this.CompleteHandlers == null) {
+            if (this.streams == null) {
                 return;
             }
 
-            localSet = this.CompleteHandlers;
-            this.CompleteHandlers = null;
+            localSet = this.streams;
+            this.streams = null;
         }
 
         boolean isCancelled = this.isCancelled();
@@ -99,38 +101,40 @@ public class FutureImpl<R> implements ListenableFuture<R> {
         Iterator it = localSet.iterator();
 
         while (it.hasNext()) {
-            CompleteHandler<R> CompleteHandler = (CompleteHandler) it.next();
+            Stream<R> stream = (Stream) it.next();
             it.remove();
 
             try {
                 if (isCancelled) {
-                    CompleteHandler.onCanceled();
+                    stream.onCanceled();
                 } else if (error != null) {
-                    CompleteHandler.onFailed(error);
+                    stream.onFailed(error);
                 } else {
-                    CompleteHandler.onCompleted(result);
+                    stream.onNext((R) result);
+                    stream.onCompleted();
                 }
-            } catch (Exception var8) {
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
             }
         }
 
     }
 
-    private void notifyCompleteHandler(CompleteHandler<R> CompleteHandler) {
+    private void notifyStream(Stream<R> stream) {
         if (this.isCancelled()) {
-            CompleteHandler.onCanceled();
+            stream.onCanceled();
         } else {
             try {
                 Object result = this.get();
-
                 try {
-                    CompleteHandler.onCompleted((R) result);
+                    stream.onNext((R) result);
+                    stream.onCompleted();
                 } catch (Exception var4) {
                 }
             } catch (ExecutionException var5) {
-                CompleteHandler.onFailed(var5.getCause());
+                stream.onFailed(var5.getCause());
             } catch (Exception var6) {
-                CompleteHandler.onFailed(var6);
+                stream.onFailed(var6);
             }
         }
 
@@ -157,7 +161,7 @@ public class FutureImpl<R> implements ListenableFuture<R> {
     }
 
     protected void done() {
-        this.notifyCompleteHandlers();
+        this.notifyStreams();
         this.onComplete();
     }
 

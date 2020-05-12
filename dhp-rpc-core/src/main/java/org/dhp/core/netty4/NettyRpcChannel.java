@@ -7,9 +7,11 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
+import org.dhp.common.utils.ProtostuffUtils;
+import org.dhp.core.rpc.ClientStreamManager;
+import org.dhp.core.rpc.Message;
 import org.dhp.core.rpc.MessageStatus;
 import org.dhp.core.rpc.RpcChannel;
-import org.glassfish.grizzly.CompletionHandler;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -23,12 +25,11 @@ public class NettyRpcChannel extends RpcChannel {
     AtomicInteger _ID = new AtomicInteger();
 
     Channel channel;
-
-    StreamHandler streamHandler;
-
-    @Override
+    
+    ClientStreamManager streamManager;
+    
     public void start() {
-        streamHandler = new StreamHandler();
+        streamManager = new ClientStreamManager();
         if (b == null) {
             b = new Bootstrap();
             b.option(ChannelOption.SO_KEEPALIVE, true);
@@ -39,13 +40,24 @@ public class NettyRpcChannel extends RpcChannel {
                             ChannelPipeline pipeline = ch.pipeline();
                             pipeline.addLast(new RpcMessageEncoder());
                             pipeline.addLast(new RpcMessageDecoder());
-                            pipeline.addLast(streamHandler); //客户端处理类
+                            pipeline.addLast(new ChannelInboundHandlerAdapter(){
+                                @Override
+                                public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                                    streamManager.handleMessage((NettyMessage) msg);
+                                }
+                            }); //客户端处理类
                         }
                     });
         }
         connect();
     }
-
+    
+    @Override
+    public void register() {
+        byte[] idBytes = ProtostuffUtils.serialize(Long.class, this.getId());
+        sendMessage("register", idBytes);
+    }
+    
     public boolean connect() {
         if (channel == null || !channel.isOpen()) {
             ChannelFuture future = null;
@@ -63,65 +75,52 @@ public class NettyRpcChannel extends RpcChannel {
                 }
             });
             this.channel = future.channel();
+            this.register();
         }
         return true;
     }
 
     private long activeTime = System.currentTimeMillis();
-
-    public void ping() {
+    
+    public NettyMessage sendMessage(String command, byte[] body) {
         NettyMessage message = new NettyMessage();
         message.setId(_ID.incrementAndGet());
-        message.setCommand("ping");
-        message.setData((System.currentTimeMillis()+"").getBytes());
+        message.setCommand(command);
+        message.setData(body);
         message.setStatus(MessageStatus.Sending);
-        CompletionHandler completionHandler = new CompletionHandler<NettyMessage>() {
-            public void cancelled() {
+        this.channel.writeAndFlush(message);
+        return message;
+    }
+
+    public void ping() {
+        //超过30秒没有更新，那么久重连
+        if(System.currentTimeMillis()-activeTime>30000){
+            connect();
+        }
+        Stream<NettyMessage> stream = new Stream<NettyMessage>() {
+            public void onCanceled() {
             }
-            public void failed(Throwable throwable) {
-            }
-            public void completed(NettyMessage message) {
+            public void onNext(NettyMessage value) {
                 activeTime = System.currentTimeMillis();
-                log.info("pong "+new String(message.getData()));
+                log.info("pong "+new String(value.getData()));
             }
-            public void updated(NettyMessage message) {
-                activeTime = System.currentTimeMillis();
+            public void onFailed(Throwable throwable) {
+            }
+    
+            public void onCompleted() {
             }
         };
-        streamHandler.setCompleteHandler(message.getId(), completionHandler);
-        this.channel.writeAndFlush(message);
+        NettyMessage message = sendMessage("ping", (System.currentTimeMillis()+"").getBytes());
+        streamManager.setStream(message.getId(), stream);
     }
 
     @Override
-    public Integer write(String name, byte[] argBody, Stream<byte[]> messageStream) {
+    public Integer write(String name, byte[] argBody, Stream<Message> messageStream) {
         if(!channel.isOpen() || !channel.isActive()){
             connect();
         }
-        NettyMessage message = new NettyMessage();
-        message.setId(_ID.incrementAndGet());
-        message.setCommand(name);
-        message.setData(argBody);
-        CompletionHandler completionHandler = new CompletionHandler<NettyMessage>() {
-            public void cancelled() {
-                messageStream.onCanceled();
-            }
-
-            public void failed(Throwable throwable) {
-                messageStream.onFailed(throwable);
-            }
-
-            public void completed(NettyMessage message) {
-                messageStream.onNext(message.getData());
-                messageStream.onCompleted();
-            }
-
-            public void updated(NettyMessage message) {
-                messageStream.onNext(message.getData());
-            }
-        };
-        streamHandler.setCompleteHandler(message.getId(), completionHandler);
-        this.channel.writeAndFlush(message);
-//        log.info("send message: {}", message);
+        NettyMessage message = sendMessage(name, argBody);
+        streamManager.setStream(message.getId(), messageStream);
         return message.getId();
     }
 

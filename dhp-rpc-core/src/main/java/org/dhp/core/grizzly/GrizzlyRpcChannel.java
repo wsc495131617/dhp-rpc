@@ -2,12 +2,13 @@ package org.dhp.core.grizzly;
 
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
+import org.dhp.common.utils.ProtostuffUtils;
+import org.dhp.core.rpc.ClientStreamManager;
+import org.dhp.core.rpc.Message;
 import org.dhp.core.rpc.MessageStatus;
 import org.dhp.core.rpc.RpcChannel;
 import org.dhp.core.spring.FrameworkException;
-import org.glassfish.grizzly.CompletionHandler;
-import org.glassfish.grizzly.filterchain.FilterChainBuilder;
-import org.glassfish.grizzly.filterchain.TransportFilter;
+import org.glassfish.grizzly.filterchain.*;
 import org.glassfish.grizzly.nio.transport.TCPNIOConnection;
 import org.glassfish.grizzly.nio.transport.TCPNIOTransport;
 import org.glassfish.grizzly.nio.transport.TCPNIOTransportBuilder;
@@ -24,21 +25,27 @@ public class GrizzlyRpcChannel extends RpcChannel {
 
     static TCPNIOTransport transport;
 
-    StreamFilter streamFilter;
-
     TCPNIOConnection connection;
 
     AtomicInteger _ID = new AtomicInteger();
+    
+    static ClientStreamManager streamManager = new ClientStreamManager();
 
     @Override
     public void start() {
-        streamFilter = new StreamFilter();
         if (transport == null) {
             TCPNIOTransportBuilder builder = TCPNIOTransportBuilder.newInstance();
             FilterChainBuilder fbuilder = FilterChainBuilder.stateless();
             fbuilder.add(new TransportFilter());
             fbuilder.add(new GrizzlyRpcMessageFilter());
-            fbuilder.add(streamFilter);
+            fbuilder.add(new BaseFilter(){
+                @Override
+                public NextAction handleRead(FilterChainContext ctx) throws IOException {
+                    GrizzlyMessage message = ctx.getMessage();
+                    streamManager.handleMessage(message);
+                    return super.handleRead(ctx);
+                }
+            });
 
             builder.setProcessor(fbuilder.build());
 
@@ -61,13 +68,20 @@ public class GrizzlyRpcChannel extends RpcChannel {
             throw new FrameworkException("Grizzly Rpc Channel Connect Timeout");
         }
     }
-
+    
+    @Override
+    public void register() {
+        byte[] idBytes = ProtostuffUtils.serialize(Long.class, this.getId());
+        sendMessage("register", idBytes);
+    }
+    
     public boolean connect() throws TimeoutException {
         if (connection != null && connection.isOpen() && connection.canWrite()) {
             return true;
         }
         try {
             connection = (TCPNIOConnection) this.transport.connect(this.getHost(), this.getPort()).get(this.getTimeout(), TimeUnit.MILLISECONDS);
+            this.register();
             return true;
         } catch (InterruptedException e) {
             log.warn(e.getMessage(), e);
@@ -78,6 +92,16 @@ public class GrizzlyRpcChannel extends RpcChannel {
     }
 
     private long activeTime = System.currentTimeMillis();
+    
+    protected GrizzlyMessage sendMessage(String command, byte[] body){
+        GrizzlyMessage message = new GrizzlyMessage();
+        message.setId(_ID.incrementAndGet());
+        message.setCommand(command);
+        message.setData(body);
+        message.setStatus(MessageStatus.Sending);
+        this.connection.write(message);
+        return message;
+    }
 
     public void ping() {
         if(connection.isOpen()){
@@ -87,29 +111,21 @@ public class GrizzlyRpcChannel extends RpcChannel {
                 log.warn("reconnect failed");
             }
         }
-        GrizzlyMessage message = new GrizzlyMessage();
-        message.setId(_ID.incrementAndGet());
-        message.setCommand("ping");
-        message.setData((System.currentTimeMillis()+"").getBytes());
-        message.setStatus(MessageStatus.Sending);
-        CompletionHandler completionHandler = new CompletionHandler<GrizzlyMessage>() {
-            public void cancelled() {
+        GrizzlyMessage message = sendMessage("ping", (System.currentTimeMillis()+"").getBytes());
+        Stream<GrizzlyMessage> stream = new Stream<GrizzlyMessage>() {
+            public void onCanceled() {
             }
-            public void failed(Throwable throwable) {
+            public void onNext(GrizzlyMessage value) {
             }
-            public void completed(GrizzlyMessage message) {
-                activeTime = System.currentTimeMillis();
-                log.info("pong "+new String(message.getData()));
+            public void onFailed(Throwable throwable) {
             }
-            public void updated(GrizzlyMessage message) {
-                activeTime = System.currentTimeMillis();
+            public void onCompleted() {
             }
         };
-        streamFilter.setCompleteHandler(message.getId(), completionHandler);
-        this.connection.write(message);
+        streamManager.setStream(message.getId(), stream);
     }
 
-    public Integer write(String name, byte[] argBody, Stream<byte[]> messageStream) {
+    public Integer write(String name, byte[] argBody, Stream<Message> messageStream) {
         if(connection.isOpen()){
             try {
                 this.connect();
@@ -118,30 +134,8 @@ public class GrizzlyRpcChannel extends RpcChannel {
                 return null;
             }
         }
-        GrizzlyMessage message = new GrizzlyMessage();
-        message.setId(_ID.incrementAndGet());
-        message.setCommand(name);
-        message.setData(argBody);
-        CompletionHandler completionHandler = new CompletionHandler<GrizzlyMessage>() {
-            public void cancelled() {
-                messageStream.onCanceled();
-            }
-
-            public void failed(Throwable throwable) {
-                messageStream.onFailed(throwable);
-            }
-
-            public void completed(GrizzlyMessage message) {
-                messageStream.onNext(message.getData());
-                messageStream.onCompleted();
-            }
-
-            public void updated(GrizzlyMessage message) {
-                messageStream.onNext(message.getData());
-            }
-        };
-        streamFilter.setCompleteHandler(message.getId(), completionHandler);
-        this.connection.write(message);
+        GrizzlyMessage message = sendMessage(name, argBody);
+        streamManager.setStream(message.getId(), messageStream);
         return message.getId();
     }
 }

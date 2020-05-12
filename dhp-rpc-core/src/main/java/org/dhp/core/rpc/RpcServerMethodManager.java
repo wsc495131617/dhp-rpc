@@ -3,7 +3,7 @@ package org.dhp.core.rpc;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.annotation.DMethod;
 import org.dhp.common.annotation.DService;
-import org.dhp.common.rpc.ListenableFuture;
+import org.dhp.common.rpc.StreamFuture;
 import org.dhp.core.spring.FrameworkException;
 import org.springframework.util.StringUtils;
 
@@ -55,7 +55,7 @@ public class RpcServerMethodManager {
         if (args.length == 1) {
             //一定要是ListenableFuture
             if (returnType instanceof ParameterizedType) {
-                if (ListenableFuture.class.isAssignableFrom((Class<?>) ((ParameterizedType) returnType).getRawType())) {
+                if (StreamFuture.class.isAssignableFrom((Class<?>) ((ParameterizedType) returnType).getRawType())) {
                     methodType = MethodType.Future;
                 } else {
                     throw new FrameworkException("Method ParameterizedType Return must be ListenableFuture");

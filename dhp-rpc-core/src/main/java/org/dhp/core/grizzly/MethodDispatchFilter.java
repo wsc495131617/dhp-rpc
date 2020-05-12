@@ -1,12 +1,10 @@
 package org.dhp.core.grizzly;
 
 import lombok.extern.slf4j.Slf4j;
-import org.dhp.common.rpc.CompleteHandler;
-import org.dhp.common.rpc.ListenableFuture;
 import org.dhp.common.rpc.Stream;
+import org.dhp.common.rpc.StreamFuture;
 import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.rpc.*;
-import org.glassfish.grizzly.Connection;
 import org.glassfish.grizzly.filterchain.BaseFilter;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
 import org.glassfish.grizzly.filterchain.NextAction;
@@ -18,13 +16,32 @@ import java.lang.reflect.Type;
 @Slf4j
 public class MethodDispatchFilter extends BaseFilter {
     RpcServerMethodManager methodManager;
-
-    public MethodDispatchFilter(RpcServerMethodManager methodManager) {
+    
+    GrizzlySessionManager sessionManager;
+    
+    public MethodDispatchFilter(RpcServerMethodManager methodManager, GrizzlySessionManager sessionManager) {
         this.methodManager = methodManager;
+        this.sessionManager = sessionManager;
     }
-
+    
+    @Override
+    public NextAction handleClose(FilterChainContext ctx) throws IOException {
+        sessionManager.destorySession(ctx.getConnection());
+        return super.handleClose(ctx);
+    }
+    
     public NextAction handleRead(FilterChainContext ctx) throws IOException {
         GrizzlyMessage message = ctx.getMessage();
+        Session session = sessionManager.getSession(ctx.getConnection());
+        if(!session.isRegister()){
+            if(message.getCommand().equalsIgnoreCase("register")){
+               session.setId(ProtostuffUtils.deserialize(message.getData(), Long.class));
+                sessionManager.register(session);
+            } else {
+                log.warn("收到未注册消息，丢弃: {}", message);
+            }
+            return ctx.getStopAction();
+        }
         ServerCommand command = methodManager.getCommand(message.getCommand());
         if(command == null) {
             if(message.getCommand().equalsIgnoreCase("ping")){
@@ -44,8 +61,8 @@ public class MethodDispatchFilter extends BaseFilter {
             }
         } else {
             Type[] paramTypes = command.getMethod().getParameterTypes();
+            Stream stream = new GrizzlyStream(session.getId(), command, message);
             if (command.getType() == MethodType.Stream) {// call(req, stream<resp>)
-                Stream stream = new GrizzlyStream(ctx.getConnection(), command, message);
                 Object[] params;
                 if (Stream.class.isAssignableFrom((Class<?>) paramTypes[0])) {
                     params = new Object[]{stream, ProtostuffUtils.deserialize(message.getData(), (Class<?>) paramTypes[1])};
@@ -89,8 +106,8 @@ public class MethodDispatchFilter extends BaseFilter {
                         retMessage.setCommand(command.getName());
                         ctx.getConnection().write(retMessage);
                     } else {
-                        ListenableFuture<Object> future = (ListenableFuture) result;
-                        future.addCompleteHandler(new GrizzlyCompleteHandler(message, ctx.getConnection(), command));
+                        StreamFuture<Object> future = (StreamFuture) result;
+                        future.addStream(stream);
                     }
                 }
             }
@@ -98,14 +115,14 @@ public class MethodDispatchFilter extends BaseFilter {
         return ctx.getStopAction();
     }
 
-    static class GrizzlyStream<T> implements Stream<T> {
+    class GrizzlyStream<T> implements Stream<T> {
 
-        Connection channel;
+        Long sessionId;
         ServerCommand command;
         Message message;
 
-        public GrizzlyStream(Connection channel, ServerCommand command, Message message){
-            this.channel = channel;
+        public GrizzlyStream(Long sessionId, ServerCommand command, Message message){
+            this.sessionId = sessionId;
             this.command = command;
             this.message = message;
         }
@@ -116,7 +133,7 @@ public class MethodDispatchFilter extends BaseFilter {
             retMessage.setStatus(MessageStatus.Canceled);
             retMessage.setMetadata(message.getMetadata());
             retMessage.setCommand(command.getName());
-            channel.write(retMessage);
+            sessionManager.getSessionById(sessionId).write(retMessage);
         }
 
         public void onNext(Object value) {
@@ -126,7 +143,9 @@ public class MethodDispatchFilter extends BaseFilter {
             retMessage.setCommand(command.getName());
             retMessage.setMetadata(message.getMetadata());
             retMessage.setData(MethodDispatchUtils.dealResult(command, value));
-            channel.write(retMessage);
+            Session session = sessionManager.getSessionById(sessionId);
+            if(session != null)
+                session.write(retMessage);
         }
 
         public void onFailed(Throwable throwable) {
@@ -136,58 +155,10 @@ public class MethodDispatchFilter extends BaseFilter {
             retMessage.setCommand(command.getName());
             retMessage.setData(MethodDispatchUtils.dealFailed(command, throwable));
             retMessage.setMetadata(message.getMetadata());
-            channel.write(retMessage);
+            sessionManager.getSessionById(sessionId).write(retMessage);
         }
 
         public void onCompleted() {
-            GrizzlyMessage retMessage = new GrizzlyMessage();
-            retMessage.setId(message.getId());
-            retMessage.setStatus(MessageStatus.Completed);
-            retMessage.setMetadata(message.getMetadata());
-            retMessage.setCommand(command.getName());
-            channel.write(retMessage);
-        }
-    }
-
-    public class GrizzlyCompleteHandler implements CompleteHandler<Object> {
-        GrizzlyMessage message;
-        Connection connection;
-        ServerCommand command;
-
-        public GrizzlyCompleteHandler(GrizzlyMessage message, Connection connection, ServerCommand command) {
-            this.message = message;
-            this.connection = connection;
-            this.command = command;
-        }
-
-
-        public void onCompleted(Object result) {
-            GrizzlyMessage retMessage = new GrizzlyMessage();
-            retMessage.setId(message.getId());
-            retMessage.setStatus(MessageStatus.Completed);
-            retMessage.setMetadata(message.getMetadata());
-            retMessage.setData(MethodDispatchUtils.dealResult(command, result));
-            retMessage.setCommand(command.getName());
-            connection.write(retMessage);
-        }
-
-        public void onCanceled() {
-            GrizzlyMessage retMessage = new GrizzlyMessage();
-            retMessage.setId(message.getId());
-            retMessage.setStatus(MessageStatus.Canceled);
-            retMessage.setMetadata(message.getMetadata());
-            retMessage.setCommand(command.getName());
-            connection.write(retMessage);
-        }
-
-        public void onFailed(Throwable e) {
-            GrizzlyMessage retMessage = new GrizzlyMessage();
-            retMessage.setId(message.getId());
-            retMessage.setStatus(MessageStatus.Failed);
-            retMessage.setMetadata(message.getMetadata());
-            retMessage.setCommand(command.getName());
-            retMessage.setData(MethodDispatchUtils.dealFailed(command, e));
-            connection.write(retMessage);
         }
     }
 

@@ -18,7 +18,7 @@ public class RpcServer implements InitializingBean {
 
     @Resource
     RpcServerMethodManager methodManager;
-
+    
     IRpcServer server;
 
     public void afterPropertiesSet() throws Exception {

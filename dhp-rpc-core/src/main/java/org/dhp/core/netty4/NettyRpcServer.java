@@ -8,14 +8,18 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.core.rpc.IRpcServer;
 import org.dhp.core.rpc.RpcServerMethodManager;
+import org.dhp.core.rpc.SessionManager;
 
 @Slf4j
 public class NettyRpcServer implements IRpcServer {
 
     int port;
+    
+    SessionManager sessionManager;
 
     public NettyRpcServer(int port) {
         this.port = port;
+        this.sessionManager = new NettySessionManager();
     }
 
     public void start(RpcServerMethodManager methodManager) {
@@ -32,7 +36,7 @@ public class NettyRpcServer implements IRpcServer {
                 ChannelPipeline pipeline = channel.pipeline();
                 pipeline.addLast(new RpcMessageEncoder());
                 pipeline.addLast(new RpcMessageDecoder());
-                pipeline.addLast(new MethodDispatchHandler(methodManager));
+                pipeline.addLast(new MethodDispatchHandler(methodManager, sessionManager));
             }
         });
 
