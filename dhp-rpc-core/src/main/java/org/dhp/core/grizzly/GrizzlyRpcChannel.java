@@ -3,10 +3,7 @@ package org.dhp.core.grizzly;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.utils.ProtostuffUtils;
-import org.dhp.core.rpc.ClientStreamManager;
-import org.dhp.core.rpc.Message;
-import org.dhp.core.rpc.MessageStatus;
-import org.dhp.core.rpc.RpcChannel;
+import org.dhp.core.rpc.*;
 import org.dhp.core.spring.FrameworkException;
 import org.glassfish.grizzly.filterchain.*;
 import org.glassfish.grizzly.nio.transport.TCPNIOConnection;
@@ -87,6 +84,7 @@ public class GrizzlyRpcChannel extends RpcChannel {
             log.warn(e.getMessage(), e);
         } catch (ExecutionException e) {
             log.warn(e.getMessage(), e);
+            throw new RpcException(RpcErrorCode.UNREACHABLE_NODE);
         }
         return false;
     }
