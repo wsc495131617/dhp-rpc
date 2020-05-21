@@ -1,8 +1,8 @@
 package org.dhp.core.spring;
 
 import lombok.extern.slf4j.Slf4j;
-import org.dhp.core.grizzly.GrizzlyRpcServer;
-import org.dhp.core.netty4.NettyRpcServer;
+import org.dhp.net.grizzly.GrizzlyRpcServer;
+import org.dhp.net.netty4.NettyRpcServer;
 import org.dhp.core.rpc.ChannelType;
 import org.dhp.core.rpc.IRpcServer;
 import org.dhp.core.rpc.RpcServerMethodManager;

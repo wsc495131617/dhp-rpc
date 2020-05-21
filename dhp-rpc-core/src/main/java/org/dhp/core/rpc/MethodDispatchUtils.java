@@ -1,5 +1,6 @@
 package org.dhp.core.rpc;
 
+import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.utils.ProtostuffUtils;
 
@@ -12,17 +13,17 @@ public class MethodDispatchUtils {
     public static byte[] dealFailed(ServerCommand command, Throwable e) {
         String throwableClassName = e.getClass().getName();
         String throwableMessage = e.getMessage();
-        String throwableContent = e.toString();
-        RpcFailedResponse response = RpcFailedResponse.builder().clsName(throwableClassName)
-                .message(throwableMessage)
-                .content(throwableContent)
-                .build();
+        String throwableContent = JSON.toJSONString(e);
+        RpcFailedResponse response = new RpcFailedResponse();
+        response.setClsName(throwableClassName);
+        response.setMessage(throwableMessage);
+        response.setContent(throwableContent);
         return ProtostuffUtils.serialize(RpcFailedResponse.class, response);
     }
 
     public static byte[] dealResult(ServerCommand command, Object result) {
         try {
-            if(command.getType() == MethodType.Default) {
+            if(command.getType() == MethodType.Default || command.getType() == MethodType.List) {
                 return ProtostuffUtils.serialize((Class) command.getMethod().getReturnType(), result);
             } else if(command.getType() == MethodType.Future){
                 ParameterizedType type = (ParameterizedType)command.getMethod().getGenericReturnType();

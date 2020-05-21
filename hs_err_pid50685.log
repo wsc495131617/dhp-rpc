@@ -1,0 +1,32 @@
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  SIGSEGV (0xb) at pc=0x0000000108144ff4, pid=50685, tid=30723
+#
+# JRE version: OpenJDK Runtime Environment (11.0.6+10) (build 11.0.6+10)
+# Java VM: OpenJDK 64-Bit Server VM (11.0.6+10, mixed mode, tiered, compressed oops, g1 gc, bsd-amd64)
+# Problematic frame:
+# V  [libjvm.dylib+0x744ff4]  EnableIf<HasDecorator<802934ull, MO_UNORDERED>::value, unsigned int>::type RawAccessBarrier<802934ull>::load_internal<802934ull, unsigned int>(void*)+0x4
+#
+# No core dump will be written. Core dumps have been disabled. To enable core dumping, try "ulimit -c unlimited" before starting Java again
+#
+# If you would like to submit a bug report, please visit:
+#   https://github.com/AdoptOpenJDK/openjdk-support/issues
+#
+
+---------------  S U M M A R Y ------------
+
+Command Line: -agentlib:jdwp=transport=dt_socket,address=127.0.0.1:50012,suspend=y,server=n -XX:TieredStopAtLevel=1 -Xverify:none -Dspring.output.ansi.enabled=always -Dcom.sun.management.jmxremote -Dspring.jmx.enabled=true -Dspring.liveBeansView.mbeanDomain -Dspring.application.admin.enabled=true -javaagent:/Users/zhangcb/Library/Caches/IntelliJIdea2019.3/captureAgent/debugger-agent.jar -Dfile.encoding=UTF-8 org.dhp.examples.rpcdemo.RpcServerDemoApplication
+
+Host: MacBookPro15,2 x86_64 2400 MHz, 8 cores, 8G, Darwin 19.4.0
+Time: Thu May 21 10:47:42 2020 CST elapsed time: 257 seconds (0d 0h 4m 17s)
+
+---------------  T H R E A D  ---------------
+
+Current thread (0x00007fbad71de000):  JavaThread "grizzly-nio-kernel(4) SelectorRunner" daemon [_thread_in_vm, id=30723, stack(0x000070000ae5e000,0x000070000af5e000)]
+
+Stack: [0x000070000ae5e000,0x000070000af5e000],  sp=0x000070000af5cd70,  free space=1019k
+Native frames: (J=compiled Java code, A=aot compiled Java code, j=interpreted, Vv=VM code, C=native code)
+V  [libjvm.dylib+0x744ff4]  EnableIf<HasDecorator<802934ull, MO_UNORDERED>::value, unsigned int>::type RawAccessBarrier<802934ull>::load_internal<802934ull, unsigned int>(void*)+0x4
+V  [libjvm.dylib+0x744fa9]  oopDesc* RawAccessBarrier<802934ull>::oop_load<oopDesc*>(void*)+0x9
+V  [libjvm.dylib+0x745035]

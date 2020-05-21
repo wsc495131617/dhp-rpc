@@ -2,8 +2,8 @@ package org.dhp.core;
 
 import io.netty.buffer.ByteBuf;
 import lombok.extern.slf4j.Slf4j;
-import org.dhp.core.grizzly.GrizzlyMessage;
-import org.dhp.core.netty4.NettyMessage;
+import org.dhp.net.grizzly.GrizzlyMessage;
+import org.dhp.net.netty4.NettyMessage;
 import org.dhp.core.rpc.MetaData;
 import org.glassfish.grizzly.Buffer;
 import org.junit.Test;

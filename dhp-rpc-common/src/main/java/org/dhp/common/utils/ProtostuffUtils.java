@@ -60,4 +60,5 @@ public class ProtostuffUtils {
 
         return newInstance;
     }
+    
 }

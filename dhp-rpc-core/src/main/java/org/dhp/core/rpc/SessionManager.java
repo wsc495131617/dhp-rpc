@@ -19,6 +19,10 @@ public abstract class SessionManager {
         return sessions.get(sessionId);
     }
     
+    public void destory(Session session){
+        this.sessions.remove(session.getId());
+    }
+    
     public abstract Session getSession(Object connection);
     public abstract void destorySession(Object connection);
 }

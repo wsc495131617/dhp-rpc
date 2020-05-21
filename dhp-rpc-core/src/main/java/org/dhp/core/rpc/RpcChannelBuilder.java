@@ -1,7 +1,7 @@
 package org.dhp.core.rpc;
 
-import org.dhp.core.grizzly.GrizzlyRpcChannel;
-import org.dhp.core.netty4.NettyRpcChannel;
+import org.dhp.net.grizzly.GrizzlyRpcChannel;
+import org.dhp.net.netty4.NettyRpcChannel;
 
 public class RpcChannelBuilder {
     String name;

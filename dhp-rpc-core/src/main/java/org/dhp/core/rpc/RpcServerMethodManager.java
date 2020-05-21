@@ -53,9 +53,12 @@ public class RpcServerMethodManager {
 
         //入参为1个
         if (args.length == 1) {
-            //一定要是ListenableFuture
+            //一定要是ListenableFuture 或者是 List 多结果集
             if (returnType instanceof ParameterizedType) {
-                if (StreamFuture.class.isAssignableFrom((Class<?>) ((ParameterizedType) returnType).getRawType())) {
+                if(List.class.isAssignableFrom((Class)((ParameterizedType) returnType).getRawType())){
+                    methodType = MethodType.List;
+                }
+                else if (StreamFuture.class.isAssignableFrom((Class<?>) ((ParameterizedType) returnType).getRawType())) {
                     methodType = MethodType.Future;
                 } else {
                     throw new FrameworkException("Method ParameterizedType Return must be ListenableFuture");

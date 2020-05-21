@@ -18,12 +18,10 @@ import javax.annotation.Resource;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.*;
 
 /**
  * 对于invoke的方法，应该需要统一标准，所有入参都应该继承RpcRequest或者增加Stream流入参，用于多个结果的返回，所有出参都应该集成RpcResponse或者是FutureResponse
@@ -123,6 +121,8 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
             future = new FutureImpl();
             if (StreamFuture.class.isAssignableFrom((Class) returnType)) {
                 methodType = MethodType.Future;
+            } else if(returnType instanceof ParameterizedType && List.class.isAssignableFrom((Class)((ParameterizedType) returnType).getRawType())){
+                methodType = MethodType.List;
             } else {
                 methodType = MethodType.Default;
             }
@@ -165,7 +165,7 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
                 if (finalMethodType == MethodType.Stream) {
                     finalArgStream.onFailed(throwable);
                 } else {
-                    finalFuture.result(throwable);
+                    finalFuture.failure(throwable);
                 }
             }
 
@@ -186,15 +186,22 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
             return null;
         } else if (finalMethodType == MethodType.Future) {
             return future;
-        } else if (future != null)
-            return future.get();
+        } else if (future != null) {
+            try {
+                return future.get(dhpProperties.getTimeout(), TimeUnit.MILLISECONDS);
+            } catch (ExecutionException e){
+                throw e.getCause();
+            } catch (TimeoutException e){
+                throw new RpcException(RpcErrorCode.TIMEOUT);
+            }
+        }
         else
             return null;
     }
 
     private Object dealResult(MethodType methodType, Method method, byte[] result) {
         try {
-            if (methodType == MethodType.Default) {
+            if (methodType == MethodType.Default || methodType == MethodType.List) {
                 return ProtostuffUtils.deserialize(result, (Class) method.getReturnType());
             } else if (methodType == MethodType.Future) {
                 ParameterizedType type = (ParameterizedType) method.getGenericReturnType();
@@ -229,9 +236,7 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
             throw new RpcException(RpcErrorCode.NODE_NOT_FOUND);
         }
         RpcChannel channel = channelPool.getChannel(node);
-        channel.write(command.getName(), argBody, stream);
-
-        return 0;
+        return channel.write(command.getName(), argBody, stream);
     }
 
 
