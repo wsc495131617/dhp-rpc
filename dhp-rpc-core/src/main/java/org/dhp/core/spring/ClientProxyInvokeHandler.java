@@ -10,11 +10,11 @@ import org.dhp.core.rpc.*;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
-import org.springframework.cglib.proxy.InvocationHandler;
 import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;

@@ -1,29 +1,27 @@
 package org.dhp.core.spring;
 
 import lombok.extern.slf4j.Slf4j;
-import org.dhp.common.annotation.DService;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.cglib.proxy.Proxy;
+
+import java.lang.reflect.Proxy;
 
 @Slf4j
 public class ClientProxyFactoryBean implements FactoryBean<Object>, InitializingBean, BeanFactoryAware {
 
-    String className;
-
     Class<?> classType;
-
-    public String getClassName() {
-        return className;
+    
+    public void setClassType(Class<?> classType) {
+        this.classType = classType;
     }
-
-    public void setClassName(String className) {
-        this.className = className;
+    
+    public Class<?> getClassType() {
+        return classType;
     }
-
+    
     Object proxy;
 
     @Override
@@ -44,7 +42,6 @@ public class ClientProxyFactoryBean implements FactoryBean<Object>, Initializing
     @Override
     public void afterPropertiesSet() throws Exception {
         try {
-            classType = Class.forName(className);
             this.proxy = createProxy();
         } catch (Exception e) {
             log.error(e.getMessage(), e);
@@ -53,7 +50,7 @@ public class ClientProxyFactoryBean implements FactoryBean<Object>, Initializing
 
     private Object createProxy() {
         ClientProxyInvokeHandler invocationHandler = beanFactory.getBean(ClientProxyInvokeHandler.class);
-        Object proxy = Proxy.newProxyInstance(DService.class.getClassLoader(), new Class[]{classType}, invocationHandler);
+        Object proxy = Proxy.newProxyInstance(invocationHandler.getClass().getClassLoader(), new Class<?>[]{classType}, invocationHandler);
         return proxy;
     }
 
