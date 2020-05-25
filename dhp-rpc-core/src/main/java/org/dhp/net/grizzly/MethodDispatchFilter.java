@@ -38,7 +38,8 @@ public class MethodDispatchFilter extends BaseFilter {
                session.setId(ProtostuffUtils.deserialize(message.getData(), Long.class));
                 sessionManager.register(session);
             } else {
-                log.warn("收到未注册消息，丢弃: {}", message);
+                log.warn("收到未注册消息，丢弃: {}, 并关闭连接: {}", message, ctx.getConnection());
+                ctx.getConnection().close();
             }
             return ctx.getStopAction();
         }

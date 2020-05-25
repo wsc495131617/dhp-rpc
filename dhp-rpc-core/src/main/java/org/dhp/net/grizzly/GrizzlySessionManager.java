@@ -1,5 +1,7 @@
 package org.dhp.net.grizzly;
 
+import lombok.extern.slf4j.Slf4j;
+import org.dhp.core.rpc.MessageStatus;
 import org.dhp.core.rpc.Session;
 import org.dhp.core.rpc.SessionManager;
 import org.glassfish.grizzly.Connection;
@@ -7,6 +9,7 @@ import org.glassfish.grizzly.Connection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 public class GrizzlySessionManager extends SessionManager {
     Map<Connection, GrizzlySession> allSessions = new ConcurrentHashMap<>();
     
@@ -29,5 +32,18 @@ public class GrizzlySessionManager extends SessionManager {
             this.destory(session);
             session.destory();
         }
+    }
+    
+    @Override
+    public void forceClose() {
+        isClosing = true;
+        allSessions.values().parallelStream().forEach(session -> {
+            GrizzlyMessage message = new GrizzlyMessage();
+            message.setId(0);
+            message.setCommand("close");
+            message.setStatus(MessageStatus.Completed);
+            session.write(message);
+            log.info("closing session: {}", session);
+        });
     }
 }

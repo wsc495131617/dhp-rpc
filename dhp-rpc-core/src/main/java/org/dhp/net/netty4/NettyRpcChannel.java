@@ -8,22 +8,19 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.utils.ProtostuffUtils;
-import org.dhp.core.rpc.ClientStreamManager;
-import org.dhp.core.rpc.Message;
-import org.dhp.core.rpc.MessageStatus;
-import org.dhp.core.rpc.RpcChannel;
+import org.dhp.core.rpc.*;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 public class NettyRpcChannel extends RpcChannel {
-
+    
     final static EventLoopGroup group = new NioEventLoopGroup();
-
+    
     static Bootstrap b;
-
+    
     AtomicInteger _ID = new AtomicInteger();
-
+    
     Channel channel;
     
     ClientStreamManager streamManager;
@@ -34,16 +31,25 @@ public class NettyRpcChannel extends RpcChannel {
             b = new Bootstrap();
             b.option(ChannelOption.SO_KEEPALIVE, true);
             b.option(ChannelOption.TCP_NODELAY, true);
+            b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000);
+    
             b.group(group).channel(NioSocketChannel.class)
                     .handler(new ChannelInitializer<SocketChannel>() {
                         public void initChannel(SocketChannel ch) throws Exception {
                             ChannelPipeline pipeline = ch.pipeline();
                             pipeline.addLast(new RpcMessageEncoder());
                             pipeline.addLast(new RpcMessageDecoder());
-                            pipeline.addLast(new ChannelInboundHandlerAdapter(){
+                            pipeline.addLast(new ChannelInboundHandlerAdapter() {
                                 @Override
                                 public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-                                    streamManager.handleMessage((NettyMessage) msg);
+                                    NettyMessage message = (NettyMessage) msg;
+                                    //close
+                                    if (message.getCommand().equals("close")) {
+                                        Channel channel = ctx.channel();
+                                        readyToCloseConns.add(channel);
+                                    } else {
+                                        streamManager.handleMessage(message);
+                                    }
                                 }
                             }); //客户端处理类
                         }
@@ -62,27 +68,38 @@ public class NettyRpcChannel extends RpcChannel {
         if (channel == null || !channel.isOpen()) {
             ChannelFuture future = null;
             try {
+                log.info("connect to {}:{}", this.getHost(), this.getPort());
                 future = b.connect(this.getHost(), this.getPort()).sync();
-            } catch (InterruptedException e) {
+            } catch (Exception e) {
+                throw new RpcException(RpcErrorCode.UNREACHABLE_NODE);
             }
-            future.addListener(new ChannelFutureListener() {
-                public void operationComplete(ChannelFuture channelFuture) throws Exception {
-                    if (channelFuture.isSuccess()) {
-                        log.info("Connect {},{},{} success", getName(), getHost(), getPort());
-                    } else {
-                        log.error("Error", channelFuture.cause());
-                    }
-                }
-            });
             this.channel = future.channel();
             this.register();
         }
         return true;
     }
-
+    
     private long activeTime = System.currentTimeMillis();
     
     public NettyMessage sendMessage(String command, byte[] body) {
+        synchronized (channel) {
+            while (readyToCloseConns.contains(channel)) {
+                try {
+                    log.warn("waiting for switch channel");
+                    connect();
+                } catch (RpcException e) {
+                    if(e.getCode() == RpcErrorCode.UNREACHABLE_NODE){
+                        continue;
+                    }
+                } finally {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                    }
+                }
+            }
+        }
+        
         NettyMessage message = new NettyMessage();
         message.setId(_ID.incrementAndGet());
         message.setCommand(command);
@@ -91,37 +108,36 @@ public class NettyRpcChannel extends RpcChannel {
         this.channel.writeAndFlush(message);
         return message;
     }
-
+    
     public void ping() {
         //超过30秒没有更新，那么久重连
-        if(System.currentTimeMillis()-activeTime>30000){
+        if (System.currentTimeMillis() - activeTime > 30000) {
             connect();
         }
         Stream<NettyMessage> stream = new Stream<NettyMessage>() {
             public void onCanceled() {
             }
+            
             public void onNext(NettyMessage value) {
                 activeTime = System.currentTimeMillis();
-                log.info("pong "+new String(value.getData()));
+                log.info("pong " + new String(value.getData()));
             }
+            
             public void onFailed(Throwable throwable) {
             }
-    
+            
             public void onCompleted() {
             }
         };
-        NettyMessage message = sendMessage("ping", (System.currentTimeMillis()+"").getBytes());
+        NettyMessage message = sendMessage("ping", (System.currentTimeMillis() + "").getBytes());
         streamManager.setStream(message, stream);
     }
-
+    
     @Override
     public Integer write(String name, byte[] argBody, Stream<Message> messageStream) {
-        if(!channel.isOpen() || !channel.isActive()){
-            connect();
-        }
         NettyMessage message = sendMessage(name, argBody);
         streamManager.setStream(message, messageStream);
         return message.getId();
     }
-
+    
 }

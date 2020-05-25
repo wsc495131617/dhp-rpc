@@ -1,12 +1,15 @@
 package org.dhp.net.netty4;
 
 import io.netty.channel.Channel;
+import lombok.extern.slf4j.Slf4j;
+import org.dhp.core.rpc.MessageStatus;
 import org.dhp.core.rpc.Session;
 import org.dhp.core.rpc.SessionManager;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 public class NettySessionManager extends SessionManager {
     
     Map<Channel, NettySession> allSessions = new ConcurrentHashMap<>();
@@ -29,5 +32,19 @@ public class NettySessionManager extends SessionManager {
         if(session != null){
             session.destory();
         }
+    }
+    
+    @Override
+    public void forceClose() {
+        isClosing = true;
+        log.info("close netty sessions: {}", allSessions.size());
+        allSessions.values().parallelStream().forEach(session -> {
+            NettyMessage message = new NettyMessage();
+            message.setId(0);
+            message.setCommand("close");
+            message.setStatus(MessageStatus.Completed);
+            session.write(message);
+            log.info("closing session: {}", session);
+        });
     }
 }

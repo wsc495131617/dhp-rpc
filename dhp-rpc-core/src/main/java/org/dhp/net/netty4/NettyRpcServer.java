@@ -16,18 +16,20 @@ public class NettyRpcServer implements IRpcServer {
     int port;
     
     SessionManager sessionManager;
-
+    
+    final ServerBootstrap serverBootstrap = new ServerBootstrap();
+    final EventLoopGroup boss = new NioEventLoopGroup(1);
+    EventLoopGroup worker;
+    
     public NettyRpcServer(int port) {
         this.port = port;
         this.sessionManager = new NettySessionManager();
     }
 
     public void start(RpcServerMethodManager methodManager) {
-        final ServerBootstrap serverBootstrap = new ServerBootstrap();
-
-        EventLoopGroup boss = new NioEventLoopGroup(1);
-        EventLoopGroup worker = new NioEventLoopGroup(Runtime.getRuntime().availableProcessors() * 2);
-
+    
+        worker = new NioEventLoopGroup(Runtime.getRuntime().availableProcessors() * 2);
+    
         serverBootstrap.group(boss, worker);
         serverBootstrap.channel(NioServerSocketChannel.class);
 
@@ -44,22 +46,18 @@ public class NettyRpcServer implements IRpcServer {
         serverBootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         serverBootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);//维持链接的活跃，清除死链接
         serverBootstrap.childOption(ChannelOption.TCP_NODELAY, true);//关闭延迟发送
-
-        //7.5.监听关闭
-        Thread t = new Thread(() -> {
-            try {
-                //7.绑定ip和port
-                ChannelFuture channelFuture = serverBootstrap.bind("0.0.0.0", port).sync();//Future模式的channel对象
-                channelFuture.channel().closeFuture().sync();  //等待服务关闭，关闭后应该释放资源
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } finally {
-                //8.优雅的关闭资源
-                boss.shutdownGracefully();
-                worker.shutdownGracefully();
-            }
-        });
-        t.setDaemon(false);
-        t.start();
+        serverBootstrap.bind("0.0.0.0", port);
+        
+    }
+    
+    @Override
+    public void shutdown() {
+        sessionManager.forceClose();
+        boss.shutdownGracefully();
+        worker.shutdownGracefully();
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+        }
     }
 }

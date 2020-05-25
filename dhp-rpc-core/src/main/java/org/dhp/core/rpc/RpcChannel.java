@@ -3,6 +3,8 @@ package org.dhp.core.rpc;
 import lombok.Data;
 import org.dhp.common.rpc.Stream;
 
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeoutException;
 
@@ -17,6 +19,9 @@ public abstract class RpcChannel {
     long timeout;
     ChannelType type;
     Long id;
+    
+    //等待关闭的连接，有可能是网络延迟，或者服务端准备关闭的
+    protected Set<Object> readyToCloseConns = ConcurrentHashMap.newKeySet();
     
     public RpcChannel(){
         id = System.currentTimeMillis()*10000000+ ThreadLocalRandom.current().nextInt(1000000,9999999);
