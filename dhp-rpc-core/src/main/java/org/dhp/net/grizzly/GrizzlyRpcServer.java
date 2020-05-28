@@ -48,7 +48,6 @@ public class GrizzlyRpcServer implements IRpcServer {
                 try {
                     Thread.sleep(1000);
                 } catch (Exception e){
-                
                 }
             }
             public void shutdownForced() {

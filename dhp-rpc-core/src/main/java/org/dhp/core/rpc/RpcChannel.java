@@ -29,8 +29,6 @@ public abstract class RpcChannel {
 
     public abstract void start();
     
-    public abstract void register();
-
     public abstract void ping();
 
     public abstract boolean connect() throws TimeoutException;

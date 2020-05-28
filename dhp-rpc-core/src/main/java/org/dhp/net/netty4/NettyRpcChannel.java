@@ -6,10 +6,12 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import lombok.extern.slf4j.Slf4j;
+import org.dhp.common.rpc.SimpleStream;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.rpc.*;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
@@ -32,7 +34,7 @@ public class NettyRpcChannel extends RpcChannel {
             b.option(ChannelOption.SO_KEEPALIVE, true);
             b.option(ChannelOption.TCP_NODELAY, true);
             b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000);
-    
+            
             b.group(group).channel(NioSocketChannel.class)
                     .handler(new ChannelInitializer<SocketChannel>() {
                         public void initChannel(SocketChannel ch) throws Exception {
@@ -40,9 +42,19 @@ public class NettyRpcChannel extends RpcChannel {
                             pipeline.addLast(new RpcMessageEncoder());
                             pipeline.addLast(new RpcMessageDecoder());
                             pipeline.addLast(new ChannelInboundHandlerAdapter() {
+                                
+                                @Override
+                                public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+                                    log.info("channel is closed: {}", ctx.channel());
+                                    //cancel all req
+                                    super.channelInactive(ctx);
+                                }
+                                
                                 @Override
                                 public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
                                     NettyMessage message = (NettyMessage) msg;
+                                    if(log.isDebugEnabled())
+                                        log.debug("recv: {}", msg);
                                     //close
                                     if (message.getCommand().equals("close")) {
                                         Channel channel = ctx.channel();
@@ -58,12 +70,6 @@ public class NettyRpcChannel extends RpcChannel {
         connect();
     }
     
-    @Override
-    public void register() {
-        byte[] idBytes = ProtostuffUtils.serialize(Long.class, this.getId());
-        sendMessage("register", idBytes);
-    }
-    
     public boolean connect() {
         if (channel == null || !channel.isOpen()) {
             ChannelFuture future = null;
@@ -74,7 +80,23 @@ public class NettyRpcChannel extends RpcChannel {
                 throw new RpcException(RpcErrorCode.UNREACHABLE_NODE);
             }
             this.channel = future.channel();
-            this.register();
+            byte[] idBytes = ProtostuffUtils.serialize(Long.class, this.getId());
+            FutureImpl<Message> mfuture = new FutureImpl<>();
+            Stream<Message> stream = new SimpleStream<>();
+            mfuture.addStream(stream);
+            write("register", idBytes, stream);
+            Message resp = null;
+            try {
+                resp = mfuture.get();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            }
+            if(resp != null && resp.getStatus() == MessageStatus.Completed){
+                return true;
+            }
+            return false;
         }
         return true;
     }
@@ -87,13 +109,14 @@ public class NettyRpcChannel extends RpcChannel {
                 try {
                     log.warn("waiting for switch channel");
                     connect();
+                    log.warn("switch channel success!");
                 } catch (RpcException e) {
-                    if(e.getCode() == RpcErrorCode.UNREACHABLE_NODE){
+                    if (e.getCode() == RpcErrorCode.UNREACHABLE_NODE) {
                         continue;
                     }
                 } finally {
                     try {
-                        Thread.sleep(100);
+                        Thread.sleep(3000);
                     } catch (InterruptedException e) {
                     }
                 }
@@ -110,10 +133,6 @@ public class NettyRpcChannel extends RpcChannel {
     }
     
     public void ping() {
-        //超过30秒没有更新，那么久重连
-        if (System.currentTimeMillis() - activeTime > 30000) {
-            connect();
-        }
         Stream<NettyMessage> stream = new Stream<NettyMessage>() {
             public void onCanceled() {
             }

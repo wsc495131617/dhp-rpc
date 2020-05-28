@@ -11,7 +11,11 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public abstract class SessionManager {
     
-    protected boolean isClosing = false;
+    protected boolean closing = false;
+    
+    public boolean isClosing(){
+        return this.closing;
+    }
     
     Map<Long, Session> sessions = new ConcurrentHashMap<>();
     

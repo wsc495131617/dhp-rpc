@@ -36,7 +36,12 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
         if(!session.isRegister()){
             if(message.getCommand().equalsIgnoreCase("register")){
                 session.setId(ProtostuffUtils.deserialize(message.getData(), Long.class));
-                sessionManager.register(session);
+                if(sessionManager.register(session)){
+                    message.setStatus(MessageStatus.Completed);
+                } else {
+                    message.setStatus(MessageStatus.Failed);
+                }
+                session.write(message);
             } else {
                 log.warn("收到未注册消息，丢弃: {}, 并关闭: {}", message, ctx.channel());
                 ctx.channel().closeFuture();

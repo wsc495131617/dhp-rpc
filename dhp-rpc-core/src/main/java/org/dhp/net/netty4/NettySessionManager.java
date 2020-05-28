@@ -36,7 +36,7 @@ public class NettySessionManager extends SessionManager {
     
     @Override
     public void forceClose() {
-        isClosing = true;
+        closing = true;
         log.info("close netty sessions: {}", allSessions.size());
         allSessions.values().parallelStream().forEach(session -> {
             NettyMessage message = new NettyMessage();

@@ -1,6 +1,7 @@
 package org.dhp.net.grizzly;
 
 import lombok.extern.slf4j.Slf4j;
+import org.dhp.common.rpc.SimpleStream;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.rpc.*;
@@ -74,31 +75,29 @@ public class GrizzlyRpcChannel extends RpcChannel {
                 throw new FrameworkException("Grizzly Rpc Channel Start Failed");
             }
         }
-        try {
-            this.connect();
-        } catch (TimeoutException e) {
-            throw new FrameworkException("Grizzly Rpc Channel Connect Timeout");
-        }
+        this.connect();
     }
     
-    @Override
-    public void register() {
-        byte[] idBytes = ProtostuffUtils.serialize(Long.class, this.getId());
-        sendMessage("register", idBytes);
-    }
-    
-    public boolean connect() throws TimeoutException {
+    public boolean connect() {
         if (connection != null && connection.isOpen() && connection.canWrite()) {
             return true;
         }
         try {
             log.info("connect to {}:{}", this.getHost(), this.getPort());
             connection = (TCPNIOConnection) this.transport.connect(this.getHost(), this.getPort()).get(this.getTimeout(), TimeUnit.MILLISECONDS);
-            this.register();
-            return true;
+            byte[] idBytes = ProtostuffUtils.serialize(Long.class, this.getId());
+            FutureImpl<Message> future = new FutureImpl<>();
+            Stream<Message> stream = new SimpleStream<>();
+            future.addStream(stream);
+            write("register", idBytes, stream);
+            Message resp = future.get();
+            if(resp != null && resp.getStatus() == MessageStatus.Completed){
+                return true;
+            }
+            return false;
         } catch (InterruptedException e) {
             log.warn(e.getMessage(), e);
-        } catch (ExecutionException e) {
+        } catch (ExecutionException | TimeoutException e) {
             throw new RpcException(RpcErrorCode.UNREACHABLE_NODE);
         }
         return false;
@@ -110,19 +109,17 @@ public class GrizzlyRpcChannel extends RpcChannel {
         synchronized (connection){
             while(readyToCloseConns.contains(connection)){
                 try {
-                    log.warn("waiting for switch channel");
+                    log.info("waiting for switch connection");
                     connect();
-                    Thread.sleep(100);
-                } catch (InterruptedException | TimeoutException e) {
-                    log.error("connect error: {}", e.getMessage(), e);
+                    log.info("switch connection success, {}", connection);
                 } catch (RpcException e){
-                    //下游节点找不到就继续连接
-                    if(e.getCode() == RpcErrorCode.UNREACHABLE_NODE){
-                        try {
-                            Thread.sleep(100);
-                        } catch (InterruptedException ex) {
-                        }
+                    if (e.getCode() == RpcErrorCode.UNREACHABLE_NODE) {
                         continue;
+                    }
+                } finally {
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException e) {
                     }
                 }
             }
@@ -137,18 +134,13 @@ public class GrizzlyRpcChannel extends RpcChannel {
     }
 
     public void ping() {
-        if(connection.isOpen()){
-            try {
-                this.connect();
-            } catch (TimeoutException e) {
-                log.warn("reconnect failed");
-            }
-        }
         GrizzlyMessage message = sendMessage("ping", (System.currentTimeMillis()+"").getBytes());
         Stream<GrizzlyMessage> stream = new Stream<GrizzlyMessage>() {
             public void onCanceled() {
             }
             public void onNext(GrizzlyMessage value) {
+                activeTime = System.currentTimeMillis();
+                log.info("pong " + new String(value.getData()));
             }
             public void onFailed(Throwable throwable) {
             }
