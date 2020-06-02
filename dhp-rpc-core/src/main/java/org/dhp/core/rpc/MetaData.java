@@ -3,6 +3,9 @@ package org.dhp.core.rpc;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * @author zhangcb
+ */
 public class MetaData {
     Map<Integer, String> data = new HashMap<>();
 

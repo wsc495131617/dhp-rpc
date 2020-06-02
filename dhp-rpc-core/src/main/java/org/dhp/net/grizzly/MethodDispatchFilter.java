@@ -13,6 +13,9 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 
+/**
+ * @author zhangcb
+ */
 @Slf4j
 public class MethodDispatchFilter extends BaseFilter {
     RpcServerMethodManager methodManager;
@@ -30,13 +33,27 @@ public class MethodDispatchFilter extends BaseFilter {
         return super.handleClose(ctx);
     }
     
+    @Override
+    public NextAction handleConnect(FilterChainContext ctx) throws IOException {
+        if (sessionManager.isClosing()) {
+            ctx.getConnection().close();
+            return ctx.getStopAction();
+        }
+        return super.handleConnect(ctx);
+    }
+    
     public NextAction handleRead(FilterChainContext ctx) throws IOException {
         GrizzlyMessage message = ctx.getMessage();
         Session session = sessionManager.getSession(ctx.getConnection());
-        if(!session.isRegister()){
-            if(message.getCommand().equalsIgnoreCase("register")){
-               session.setId(ProtostuffUtils.deserialize(message.getData(), Long.class));
-                sessionManager.register(session);
+        if (!session.isRegister()) {
+            if (message.getCommand().equalsIgnoreCase("register")) {
+                session.setId(ProtostuffUtils.deserialize(message.getData(), Long.class));
+                if (sessionManager.register(session)) {
+                    message.setStatus(MessageStatus.Completed);
+                } else {
+                    message.setStatus(MessageStatus.Failed);
+                }
+                session.write(message);
             } else {
                 log.warn("收到未注册消息，丢弃: {}, 并关闭连接: {}", message, ctx.getConnection());
                 ctx.getConnection().close();
@@ -44,13 +61,13 @@ public class MethodDispatchFilter extends BaseFilter {
             return ctx.getStopAction();
         }
         ServerCommand command = methodManager.getCommand(message.getCommand());
-        if(command == null) {
-            if(message.getCommand().equalsIgnoreCase("ping")){
+        if (command == null) {
+            if (message.getCommand().equalsIgnoreCase("ping")) {
                 GrizzlyMessage retMessage = new GrizzlyMessage();
                 retMessage.setId(message.getId());
                 retMessage.setStatus(MessageStatus.Completed);
                 retMessage.setCommand(message.getCommand());
-                retMessage.setData((System.currentTimeMillis()+"").getBytes());
+                retMessage.setData((System.currentTimeMillis() + "").getBytes());
                 ctx.getConnection().write(retMessage);
             } else {
                 GrizzlyMessage retMessage = new GrizzlyMessage();
@@ -101,10 +118,10 @@ public class MethodDispatchFilter extends BaseFilter {
                 GrizzlyMessage retMessage = new GrizzlyMessage();
                 if (command.getType() == MethodType.Default || command.getType() == MethodType.List) {// resp call(req)
                     retMessage.setId(message.getId());
-                    if(throwable != null) {
+                    if (throwable != null) {
                         retMessage.setStatus(MessageStatus.Failed);
                         retMessage.setData(MethodDispatchUtils.dealFailed(command, throwable));
-                    }else {
+                    } else {
                         retMessage.setStatus(MessageStatus.Completed);
                         retMessage.setData(MethodDispatchUtils.dealResult(command, result));
                     }
@@ -130,19 +147,19 @@ public class MethodDispatchFilter extends BaseFilter {
         }
         return ctx.getStopAction();
     }
-
+    
     class GrizzlyStream<T> implements Stream<T> {
-
+        
         Long sessionId;
         ServerCommand command;
         Message message;
-
-        public GrizzlyStream(Long sessionId, ServerCommand command, Message message){
+        
+        public GrizzlyStream(Long sessionId, ServerCommand command, Message message) {
             this.sessionId = sessionId;
             this.command = command;
             this.message = message;
         }
-
+        
         public void onCanceled() {
             GrizzlyMessage retMessage = new GrizzlyMessage();
             retMessage.setId(message.getId());
@@ -150,10 +167,10 @@ public class MethodDispatchFilter extends BaseFilter {
             retMessage.setMetadata(message.getMetadata());
             retMessage.setCommand(command.getName());
             Session session = sessionManager.getSessionById(sessionId);
-            if(session != null)
+            if (session != null)
                 session.write(retMessage);
         }
-
+        
         public void onNext(Object value) {
             GrizzlyMessage retMessage = new GrizzlyMessage();
             retMessage.setId(message.getId());
@@ -162,10 +179,10 @@ public class MethodDispatchFilter extends BaseFilter {
             retMessage.setMetadata(message.getMetadata());
             retMessage.setData(MethodDispatchUtils.dealResult(command, value));
             Session session = sessionManager.getSessionById(sessionId);
-            if(session != null)
+            if (session != null)
                 session.write(retMessage);
         }
-
+        
         public void onFailed(Throwable throwable) {
             GrizzlyMessage retMessage = new GrizzlyMessage();
             retMessage.setId(message.getId());
@@ -174,12 +191,12 @@ public class MethodDispatchFilter extends BaseFilter {
             retMessage.setData(MethodDispatchUtils.dealFailed(command, throwable));
             retMessage.setMetadata(message.getMetadata());
             Session session = sessionManager.getSessionById(sessionId);
-            if(session != null)
+            if (session != null)
                 session.write(retMessage);
         }
-
+        
         public void onCompleted() {
         }
     }
-
+    
 }

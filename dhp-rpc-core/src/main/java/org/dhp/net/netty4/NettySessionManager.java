@@ -9,11 +9,15 @@ import org.dhp.core.rpc.SessionManager;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * @author zhangcb
+ */
 @Slf4j
 public class NettySessionManager extends SessionManager {
     
     Map<Channel, NettySession> allSessions = new ConcurrentHashMap<>();
     
+    @Override
     public Session getSession(Object connection) {
         if(allSessions.containsKey(connection)){
             return allSessions.get(connection);
@@ -27,6 +31,7 @@ public class NettySessionManager extends SessionManager {
         return session;
     }
     
+    @Override
     public void destorySession(Object connection) {
         NettySession session = allSessions.remove(connection);
         if(session != null){
@@ -36,7 +41,7 @@ public class NettySessionManager extends SessionManager {
     
     @Override
     public void forceClose() {
-        isClosing = true;
+        closing = true;
         log.info("close netty sessions: {}", allSessions.size());
         allSessions.values().parallelStream().forEach(session -> {
             NettyMessage message = new NettyMessage();

@@ -1,5 +1,9 @@
 package org.dhp.core.rpc;
 
+/**
+ * Rpc error code define
+ * @author zhangcb
+ */
 public enum RpcErrorCode {
     COMMAND_NOT_FOUND(1000, "Command is not found, check method definition"),
     NODE_NOT_FOUND(1001, "Node is not found, check node configuration"),

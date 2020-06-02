@@ -11,6 +11,9 @@ import org.dhp.core.rpc.MetaData;
 import java.io.IOException;
 import java.util.Map;
 
+/**
+ * @author zhangcb
+ */
 @Slf4j
 public class NettyMessage extends Message {
     public NettyMessage(ByteBuf buf) {

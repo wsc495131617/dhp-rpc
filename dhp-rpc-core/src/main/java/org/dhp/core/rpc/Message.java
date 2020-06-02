@@ -2,6 +2,9 @@ package org.dhp.core.rpc;
 
 import lombok.Data;
 
+/**
+ * @author zhangcb
+ */
 @Data
 public class Message {
     public static final int HEAD_LEN = 9;

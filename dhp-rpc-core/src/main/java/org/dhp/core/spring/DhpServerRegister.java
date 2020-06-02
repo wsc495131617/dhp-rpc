@@ -7,14 +7,20 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.context.ResourceLoaderAware;
+import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
+import org.springframework.core.PriorityOrdered;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.ResourceLoader;
 
 import javax.annotation.Resource;
 
+/**
+ * @author zhangcb
+ */
 @Slf4j
 public class DhpServerRegister implements BeanPostProcessor, ResourceLoaderAware, BeanFactoryAware, EnvironmentAware, BeanClassLoaderAware {
 
@@ -28,7 +34,7 @@ public class DhpServerRegister implements BeanPostProcessor, ResourceLoaderAware
 
     @Resource
     RpcServerMethodManager methodManager;
-
+    
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
         Class<?>[] clslist = bean.getClass().getInterfaces();
@@ -45,7 +51,7 @@ public class DhpServerRegister implements BeanPostProcessor, ResourceLoaderAware
         }
         return bean;
     }
-
+    
     @Override
     public void setResourceLoader(ResourceLoader resourceLoader) {
         this.resourceLoader = resourceLoader;
@@ -66,4 +72,5 @@ public class DhpServerRegister implements BeanPostProcessor, ResourceLoaderAware
     public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
         this.beanFactory = beanFactory;
     }
+    
 }

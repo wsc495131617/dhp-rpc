@@ -2,6 +2,9 @@ package org.dhp.net.grizzly;
 
 import java.io.OutputStream;
 
+/**
+ * @author zhangcb
+ */
 public abstract class OutputStreamExt extends OutputStream {
     public abstract void writeByte(int value);
 

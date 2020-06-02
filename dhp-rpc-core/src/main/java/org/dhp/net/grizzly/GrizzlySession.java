@@ -4,6 +4,9 @@ import org.dhp.core.rpc.Message;
 import org.dhp.core.rpc.Session;
 import org.glassfish.grizzly.Connection;
 
+/**
+ * @author zhangcb
+ */
 public class GrizzlySession extends Session {
     
     Connection connection;

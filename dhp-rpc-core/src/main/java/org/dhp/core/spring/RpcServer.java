@@ -11,6 +11,9 @@ import org.springframework.beans.factory.InitializingBean;
 
 import javax.annotation.Resource;
 
+/**
+ * @author zhangcb
+ */
 @Slf4j
 public class RpcServer implements InitializingBean, DisposableBean {
 
@@ -22,9 +25,10 @@ public class RpcServer implements InitializingBean, DisposableBean {
     
     IRpcServer server;
 
+    @Override
     public void afterPropertiesSet() throws Exception {
-        if (dhpProperties.port <= 0 || dhpProperties.port > 65535) {
-            throw new FrameworkException("Invaild server port, must between 1-65535");
+        if (dhpProperties.port <= 0) {
+            throw new FrameworkException("Invaild server port");
         }
         if (server == null) {
             if (dhpProperties.type == ChannelType.Netty) {

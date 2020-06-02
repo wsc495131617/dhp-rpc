@@ -6,6 +6,9 @@ import org.dhp.common.rpc.StreamFuture;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * @author zhangcb
+ */
 public abstract class Session {
     protected Long id;
     public boolean isRegister() {

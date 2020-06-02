@@ -10,6 +10,9 @@ import org.dhp.core.rpc.IRpcServer;
 import org.dhp.core.rpc.RpcServerMethodManager;
 import org.dhp.core.rpc.SessionManager;
 
+/**
+ * @author zhangcb
+ */
 @Slf4j
 public class NettyRpcServer implements IRpcServer {
 
@@ -26,6 +29,7 @@ public class NettyRpcServer implements IRpcServer {
         this.sessionManager = new NettySessionManager();
     }
 
+    @Override
     public void start(RpcServerMethodManager methodManager) {
     
         worker = new NioEventLoopGroup(Runtime.getRuntime().availableProcessors() * 2);
@@ -52,9 +56,9 @@ public class NettyRpcServer implements IRpcServer {
     
     @Override
     public void shutdown() {
-        sessionManager.forceClose();
         boss.shutdownGracefully();
         worker.shutdownGracefully();
+        sessionManager.forceClose();
         try {
             Thread.sleep(5000);
         } catch (InterruptedException e) {
