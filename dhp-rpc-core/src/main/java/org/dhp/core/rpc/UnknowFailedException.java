@@ -4,6 +4,9 @@ import com.alibaba.fastjson.JSON;
 
 import java.lang.reflect.Constructor;
 
+/**
+ * @author zhangcb
+ */
 public class UnknowFailedException extends RuntimeException {
     String throwableClsName;
     String content;

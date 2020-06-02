@@ -14,6 +14,9 @@ import org.dhp.core.rpc.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * @author zhangcb
+ */
 @Slf4j
 public class NettyRpcChannel extends RpcChannel {
     
@@ -27,6 +30,7 @@ public class NettyRpcChannel extends RpcChannel {
     
     ClientStreamManager streamManager;
     
+    @Override
     public void start() {
         streamManager = new ClientStreamManager();
         if (b == null) {
@@ -53,8 +57,9 @@ public class NettyRpcChannel extends RpcChannel {
                                 @Override
                                 public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
                                     NettyMessage message = (NettyMessage) msg;
-                                    if(log.isDebugEnabled())
+                                    if(log.isDebugEnabled()) {
                                         log.debug("recv: {}", msg);
+                                    }
                                     //close
                                     if (message.getCommand().equals("close")) {
                                         Channel channel = ctx.channel();
@@ -69,7 +74,7 @@ public class NettyRpcChannel extends RpcChannel {
         }
         connect();
     }
-    
+    @Override
     public boolean connect() {
         if (channel == null || !channel.isOpen()) {
             ChannelFuture future = null;
@@ -82,7 +87,12 @@ public class NettyRpcChannel extends RpcChannel {
             this.channel = future.channel();
             byte[] idBytes = ProtostuffUtils.serialize(Long.class, this.getId());
             FutureImpl<Message> mfuture = new FutureImpl<>();
-            Stream<Message> stream = new SimpleStream<>();
+            Stream<Message> stream = new SimpleStream<Message>(){
+                @Override
+                public void onNext(Message value) {
+                    mfuture.result(value);
+                }
+            };
             mfuture.addStream(stream);
             write("register", idBytes, stream);
             Message resp = null;
@@ -132,19 +142,21 @@ public class NettyRpcChannel extends RpcChannel {
         return message;
     }
     
+    @Override
     public void ping() {
         Stream<NettyMessage> stream = new Stream<NettyMessage>() {
+            @Override
             public void onCanceled() {
             }
-            
+            @Override
             public void onNext(NettyMessage value) {
                 activeTime = System.currentTimeMillis();
                 log.info("pong " + new String(value.getData()));
             }
-            
+            @Override
             public void onFailed(Throwable throwable) {
             }
-            
+            @Override
             public void onCompleted() {
             }
         };

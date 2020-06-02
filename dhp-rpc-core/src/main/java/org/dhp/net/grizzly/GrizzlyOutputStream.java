@@ -64,6 +64,7 @@ public class GrizzlyOutputStream extends OutputStreamExt {
         currentBuffer.put(b, off, len);
     }
 
+    @Override
     public void writeBytes(byte[] bytes) {
         int len = bytes.length;
         ensureCapacity(len);
@@ -86,6 +87,7 @@ public class GrizzlyOutputStream extends OutputStreamExt {
         currentBuffer.put((byte) b);
     }
 
+    @Override
     public void writeByte(int b) {
         ensureCapacity(1);
         currentBuffer.put((byte) b);

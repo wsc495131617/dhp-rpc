@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 服务端的StreamManager，用于管理所有的流
+ * @author zhangcb
  */
 @Slf4j
 public class ClientStreamManager {

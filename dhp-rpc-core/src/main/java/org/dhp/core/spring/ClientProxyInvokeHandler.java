@@ -3,17 +3,17 @@ package org.dhp.core.spring;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.annotation.DMethod;
 import org.dhp.common.annotation.DService;
-import org.dhp.common.rpc.StreamFuture;
 import org.dhp.common.rpc.Stream;
+import org.dhp.common.rpc.StreamFuture;
 import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.rpc.*;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
 import org.springframework.util.StringUtils;
 
-import javax.annotation.Resource;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -25,14 +25,11 @@ import java.util.concurrent.*;
 
 /**
  * 对于invoke的方法，应该需要统一标准，所有入参都应该继承RpcRequest或者增加Stream流入参，用于多个结果的返回，所有出参都应该集成RpcResponse或者是FutureResponse
+ * @author zhangcb
  */
 @Slf4j
-public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDefinitionRegistrar, BeanFactoryAware {
+public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDefinitionRegistrar, BeanFactoryAware, InitializingBean {
 
-    @Resource
-    DhpProperties dhpProperties;
-
-    @Resource
     RpcChannelPool channelPool;
 
     protected Set<Method> excludeMethods = ConcurrentHashMap.newKeySet();
@@ -42,6 +39,7 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
     protected ExecutorService pool = Executors.newCachedThreadPool(new ThreadFactory() {
         private int i = 1;
 
+        @Override
         public Thread newThread(Runnable r) {
             Thread t = new Thread(r);
             t.setName("ClientProxy_" + (i++));
@@ -81,19 +79,8 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
         cacheCommands.put(method, command);
         return command;
     }
-
-    protected Node getNode(Command command) {
-        if (command.getNodeName() != null) {
-            for (Node node : dhpProperties.getNodes()) {
-                //如果
-                if (node.getName().equals(command.getNodeName())) {
-                    return node;
-                }
-            }
-        }
-        return null;
-    }
-
+    
+    @Override
     public Object invoke(Object o, Method method, Object[] args) throws Throwable {
         if (isExcludeMethod(method)) {
             return null;
@@ -121,7 +108,7 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
             future = new FutureImpl();
             if (StreamFuture.class.isAssignableFrom((Class) returnType)) {
                 methodType = MethodType.Future;
-            } else if(returnType instanceof ParameterizedType && List.class.isAssignableFrom((Class)((ParameterizedType) returnType).getRawType())){
+            } else if(List.class.isAssignableFrom((Class)returnType)){
                 methodType = MethodType.List;
             } else {
                 methodType = MethodType.Default;
@@ -144,6 +131,7 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
         FutureImpl finalFuture = future;
         MethodType finalMethodType1 = methodType;
         Stream<Message> stream = new Stream<Message>() {
+            @Override
             public void onCanceled() {
                 if (finalMethodType == MethodType.Stream) {
                     finalArgStream.onCanceled();
@@ -151,7 +139,7 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
                     finalFuture.cancel(false);
                 }
             }
-
+            @Override
             public void onNext(Message value) {
                 Object ret = dealResult(finalMethodType1, method, value.getData());
                 if (finalMethodType == MethodType.Stream) {
@@ -160,7 +148,7 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
                     finalFuture.result(ret);
                 }
             }
-
+            @Override
             public void onFailed(Throwable throwable) {
                 if (finalMethodType == MethodType.Stream) {
                     finalArgStream.onFailed(throwable);
@@ -169,6 +157,7 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
                 }
             }
 
+            @Override
             public void onCompleted() {
                 if (finalMethodType == MethodType.Stream) {
                     finalArgStream.onCompleted();
@@ -188,21 +177,26 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
             return future;
         } else if (future != null) {
             try {
-                return future.get(dhpProperties.getTimeout(), TimeUnit.MILLISECONDS);
+                return future.get(15000, TimeUnit.MILLISECONDS);
             } catch (ExecutionException e){
                 throw e.getCause();
             } catch (TimeoutException e){
                 throw new RpcException(RpcErrorCode.TIMEOUT);
             }
         }
-        else
+        else {
             return null;
+        }
     }
 
     private Object dealResult(MethodType methodType, Method method, byte[] result) {
         try {
-            if (methodType == MethodType.Default || methodType == MethodType.List) {
+            if (methodType == MethodType.Default) {
                 return ProtostuffUtils.deserialize(result, (Class) method.getReturnType());
+            } else if(methodType == MethodType.List) {
+                ParameterizedType type = (ParameterizedType) method.getGenericReturnType();
+                Class clas = (Class) type.getActualTypeArguments()[0];
+                return ProtostuffUtils.deserializeList(result, clas);
             } else if (methodType == MethodType.Future) {
                 ParameterizedType type = (ParameterizedType) method.getGenericReturnType();
                 Class clas = (Class) type.getActualTypeArguments()[0];
@@ -222,7 +216,7 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
         }
         return null;
     }
-
+    
     /**
      * 发送消息，并返回消息编号
      *
@@ -231,18 +225,22 @@ public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDe
      * @return
      */
     protected Integer sendMessage(Command command, byte[] argBody, Stream<Message> stream) {
-        Node node = getNode(command);
-        if(node == null){
-            throw new RpcException(RpcErrorCode.NODE_NOT_FOUND);
-        }
-        RpcChannel channel = channelPool.getChannel(node);
+        RpcChannel channel = channelPool.getChannel(command);
         return channel.write(command.getName(), argBody, stream);
     }
 
 
     BeanFactory beanFactory;
 
+    @Override
     public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
         this.beanFactory = beanFactory;
+    }
+    
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        if(channelPool == null){
+            channelPool = beanFactory.getBean(RpcChannelPool.class);
+        }
     }
 }

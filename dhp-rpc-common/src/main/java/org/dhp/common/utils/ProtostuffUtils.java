@@ -1,13 +1,28 @@
 package org.dhp.common.utils;
 
+import io.protostuff.LinkBuffer;
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtostuffIOUtil;
+import io.protostuff.Schema;
 import io.protostuff.runtime.RuntimeSchema;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 public class ProtostuffUtils {
+    
+    @Data
+    static class ObjectWrapper {
+        Object data;
+    }
 
     static Map<Class, RuntimeSchema> cacheSchema = new ConcurrentHashMap<>();
 
@@ -59,6 +74,42 @@ public class ProtostuffUtils {
         }
 
         return newInstance;
+    }
+    
+    static byte[] EMPTY = new byte[0];
+    
+    public static <T> byte[] serializeList(List<T> list) {
+        if(list == null || list.isEmpty()){
+            return EMPTY;
+        }
+        Schema<T> schema = (Schema<T>) RuntimeSchema.getSchema(list.get(0).getClass());
+        LinkedBuffer buffer = LinkedBuffer.allocate(1024*1024);
+        byte[] protostuff = null;
+        ByteArrayOutputStream byteArrayOutputStream = null;
+        try{
+            byteArrayOutputStream = new ByteArrayOutputStream();
+            ProtostuffIOUtil.writeListTo(byteArrayOutputStream, list, schema, buffer);
+            protostuff = byteArrayOutputStream.toByteArray();
+        } catch (Exception e){
+            log.error("List<{}> serializeList Failed", schema.typeClass());
+            throw new RuntimeException("serializeList failed");
+        }
+        return protostuff;
+    }
+    
+    public static <T> List<T> deserializeList(byte[] bytes, Class<T> itemTypeClass){
+        if(bytes == null || bytes.length == 0){
+            return new LinkedList<>();
+        }
+        Schema<T> schema = RuntimeSchema.getSchema(itemTypeClass);
+        List<T> result = null;
+        try {
+            result = ProtostuffIOUtil.parseListFrom(new ByteArrayInputStream(bytes), schema);
+        } catch (IOException e){
+            log.error("parse List<{}> failed", itemTypeClass);
+            throw new RuntimeException("deserializeList failed");
+        }
+        return result;
     }
     
 }

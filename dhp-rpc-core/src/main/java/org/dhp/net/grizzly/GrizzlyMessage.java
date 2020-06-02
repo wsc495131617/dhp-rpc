@@ -9,6 +9,9 @@ import org.glassfish.grizzly.memory.MemoryManager;
 
 import java.util.Map;
 
+/**
+ * @author zhangcb
+ */
 public class GrizzlyMessage extends Message {
 
     public GrizzlyMessage() {

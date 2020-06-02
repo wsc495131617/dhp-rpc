@@ -18,12 +18,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
+/**
+ * @author zhangcb
+ */
 @Slf4j
 public class FutureImpl<R> implements StreamFuture<R> {
     private final Object chSync = new Object();
     private Set<Stream<R>> streams;
     private final FutureImpl<R>.Sync sync = new FutureImpl.Sync();
 
+    @Override
     public void addStream(Stream<R> stream) {
         if (this.isDone()) {
             this.notifyStream(stream);
@@ -140,22 +144,27 @@ public class FutureImpl<R> implements StreamFuture<R> {
 
     }
 
+    @Override
     public boolean isCancelled() {
         return this.sync.innerIsCancelled();
     }
-
+    
+    @Override
     public boolean isDone() {
         return this.sync.ranOrCancelled();
     }
-
+    
+    @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
         return this.sync.innerCancel(mayInterruptIfRunning);
     }
-
+    
+    @Override
     public R get() throws InterruptedException, ExecutionException {
         return this.sync.innerGet();
     }
-
+    
+    @Override
     public R get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
         return this.sync.innerGet(unit.toNanos(timeout));
     }
@@ -180,11 +189,13 @@ public class FutureImpl<R> implements StreamFuture<R> {
         private boolean ranOrCancelled() {
             return (this.getState() & 3) != 0;
         }
-
+    
+        @Override
         protected int tryAcquireShared(int ignore) {
             return this.ranOrCancelled() ? 1 : -1;
         }
-
+    
+        @Override
         protected boolean tryReleaseShared(int ignore) {
             return true;
         }

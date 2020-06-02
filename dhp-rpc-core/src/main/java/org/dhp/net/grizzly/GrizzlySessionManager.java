@@ -9,10 +9,14 @@ import org.glassfish.grizzly.Connection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * @author zhangcb
+ */
 @Slf4j
 public class GrizzlySessionManager extends SessionManager {
     Map<Connection, GrizzlySession> allSessions = new ConcurrentHashMap<>();
     
+    @Override
     public Session getSession(Object connection) {
         if (allSessions.containsKey(connection)) {
             return allSessions.get(connection);
@@ -26,10 +30,11 @@ public class GrizzlySessionManager extends SessionManager {
         return session;
     }
     
+    @Override
     public void destorySession(Object connection) {
         GrizzlySession session = allSessions.remove(connection);
         if(session != null){
-            this.destory(session);
+            this.destroy(session);
             session.destory();
         }
     }

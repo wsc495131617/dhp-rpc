@@ -15,6 +15,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Server method manager, store all method
+ * @author zhangcb
+ */
 @Slf4j
 public class RpcServerMethodManager {
 

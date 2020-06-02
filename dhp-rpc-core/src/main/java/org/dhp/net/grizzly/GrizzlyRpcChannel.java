@@ -19,6 +19,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * @author zhangcb
+ */
 @Slf4j
 public class GrizzlyRpcChannel extends RpcChannel {
 
@@ -47,8 +50,9 @@ public class GrizzlyRpcChannel extends RpcChannel {
                 @Override
                 public NextAction handleRead(FilterChainContext ctx) throws IOException {
                     GrizzlyMessage message = ctx.getMessage();
-                    if(log.isDebugEnabled())
+                    if(log.isDebugEnabled()) {
                         log.debug("recv: {}", message);
+                    }
                     //close
                     if(message.getCommand().equals("close")){
                         Connection connection = ctx.getConnection();
@@ -67,10 +71,10 @@ public class GrizzlyRpcChannel extends RpcChannel {
             builder.setLinger(0);
             builder.setIOStrategy(SameThreadIOStrategy.getInstance());
 
-            this.transport = builder.build();
+            transport = builder.build();
 
             try {
-                this.transport.start();
+                transport.start();
             } catch (IOException e) {
                 throw new FrameworkException("Grizzly Rpc Channel Start Failed");
             }
@@ -78,17 +82,22 @@ public class GrizzlyRpcChannel extends RpcChannel {
         this.connect();
     }
     
+    @Override
     public boolean connect() {
         if (connection != null && connection.isOpen() && connection.canWrite()) {
             return true;
         }
         try {
             log.info("connect to {}:{}", this.getHost(), this.getPort());
-            connection = (TCPNIOConnection) this.transport.connect(this.getHost(), this.getPort()).get(this.getTimeout(), TimeUnit.MILLISECONDS);
+            connection = (TCPNIOConnection) transport.connect(this.getHost(), this.getPort()).get(this.getTimeout(), TimeUnit.MILLISECONDS);
             byte[] idBytes = ProtostuffUtils.serialize(Long.class, this.getId());
             FutureImpl<Message> future = new FutureImpl<>();
-            Stream<Message> stream = new SimpleStream<>();
-            future.addStream(stream);
+            Stream<Message> stream = new SimpleStream<Message>(){
+                @Override
+                public void onNext(Message value) {
+                    future.result(value);
+                }
+            };
             write("register", idBytes, stream);
             Message resp = future.get();
             if(resp != null && resp.getStatus() == MessageStatus.Completed){
@@ -130,26 +139,37 @@ public class GrizzlyRpcChannel extends RpcChannel {
         message.setData(body);
         message.setStatus(MessageStatus.Sending);
         this.connection.write(message);
+        if(log.isDebugEnabled()){
+            log.debug("send msg: {}", message);
+        }
         return message;
     }
 
+    @Override
     public void ping() {
         GrizzlyMessage message = sendMessage("ping", (System.currentTimeMillis()+"").getBytes());
         Stream<GrizzlyMessage> stream = new Stream<GrizzlyMessage>() {
+            @Override
             public void onCanceled() {
             }
+            @Override
             public void onNext(GrizzlyMessage value) {
                 activeTime = System.currentTimeMillis();
-                log.info("pong " + new String(value.getData()));
+                if(log.isDebugEnabled()) {
+                    log.debug("pong " + new String(value.getData()));
+                }
             }
+            @Override
             public void onFailed(Throwable throwable) {
             }
+            @Override
             public void onCompleted() {
             }
         };
         streamManager.setStream(message, stream);
     }
 
+    @Override
     public Integer write(String name, byte[] argBody, Stream<Message> messageStream) {
         GrizzlyMessage message = sendMessage(name, argBody);
         streamManager.setStream(message, messageStream);

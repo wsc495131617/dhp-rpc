@@ -3,6 +3,9 @@ package org.dhp.core.rpc;
 import org.dhp.net.grizzly.GrizzlyRpcChannel;
 import org.dhp.net.netty4.NettyRpcChannel;
 
+/**
+ * @author zhangcb
+ */
 public class RpcChannelBuilder {
     String name;
     int port;
@@ -26,8 +29,9 @@ public class RpcChannelBuilder {
     }
 
     public RpcChannelBuilder setTimeout(long timeout) {
-        if (timeout > 0)
+        if (timeout > 0) {
             this.timeout = timeout;
+        }
         return this;
     }
 

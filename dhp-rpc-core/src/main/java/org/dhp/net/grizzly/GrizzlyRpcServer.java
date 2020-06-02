@@ -14,6 +14,9 @@ import org.glassfish.grizzly.strategies.SameThreadIOStrategy;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * @author zhangcb
+ */
 @Slf4j
 public class GrizzlyRpcServer implements IRpcServer {
     int port;
@@ -24,6 +27,7 @@ public class GrizzlyRpcServer implements IRpcServer {
     }
     TCPNIOTransport transport;
     
+    @Override
     public void start(RpcServerMethodManager methodManager) throws IOException {
     
         TCPNIOTransportBuilder builder = TCPNIOTransportBuilder.newInstance();
@@ -41,6 +45,7 @@ public class GrizzlyRpcServer implements IRpcServer {
         transport = builder.build();
         transport.bind(port);
         transport.addShutdownListener(new GracefulShutdownListener() {
+            @Override
             public void shutdownRequested(ShutdownContext shutdownContext) {
                 log.info("grizzly shutdown requested");
                 //等待关闭
@@ -50,13 +55,14 @@ public class GrizzlyRpcServer implements IRpcServer {
                 } catch (Exception e){
                 }
             }
+            @Override
             public void shutdownForced() {
                 log.info("grizzly shutdown forced");
             }
         });
         transport.start();
     }
-    
+    @Override
     public void shutdown(){
         transport.shutdown(1, TimeUnit.SECONDS);
     }

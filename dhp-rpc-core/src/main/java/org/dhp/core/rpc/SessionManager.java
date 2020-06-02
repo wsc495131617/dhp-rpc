@@ -2,14 +2,16 @@ package org.dhp.core.rpc;
 
 import lombok.extern.slf4j.Slf4j;
 
+import javax.security.auth.Destroyable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 服务端SessionManager，给channel
+ * @author zhangcb
  */
 @Slf4j
-public abstract class SessionManager {
+public abstract class SessionManager implements Destroyable {
     
     protected boolean closing = false;
     
@@ -28,10 +30,15 @@ public abstract class SessionManager {
         return sessions.get(sessionId);
     }
     
-    public void destory(Session session) {
+    /**
+     * 销毁
+     * @param session
+     */
+    public void destroy(Session session) {
         Long id = session.getId();
-        if(id != null)
+        if(id != null) {
             this.sessions.remove(id);
+        }
     }
     
     /**
@@ -39,7 +46,16 @@ public abstract class SessionManager {
      */
     public abstract void forceClose();
     
+    /**
+     * 通过connection获得Session
+     * @param connection
+     * @return
+     */
     public abstract Session getSession(Object connection);
     
+    /**
+     * 通过connection注销Session
+     * @param connection
+     */
     public abstract void destorySession(Object connection);
 }

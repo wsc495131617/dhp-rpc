@@ -6,6 +6,7 @@ import org.dhp.common.utils.ProtostuffUtils;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.List;
 
 @Slf4j
 public class MethodDispatchUtils {
@@ -23,8 +24,10 @@ public class MethodDispatchUtils {
 
     public static byte[] dealResult(ServerCommand command, Object result) {
         try {
-            if(command.getType() == MethodType.Default || command.getType() == MethodType.List) {
+            if(command.getType() == MethodType.Default) {
                 return ProtostuffUtils.serialize((Class) command.getMethod().getReturnType(), result);
+            } else if(command.getType() == MethodType.List){
+                return ProtostuffUtils.serializeList((List) result);
             } else if(command.getType() == MethodType.Future){
                 ParameterizedType type = (ParameterizedType)command.getMethod().getGenericReturnType();
                 Class clas = (Class)type.getActualTypeArguments()[0];

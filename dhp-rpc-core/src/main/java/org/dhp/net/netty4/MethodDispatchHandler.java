@@ -11,6 +11,9 @@ import org.dhp.core.rpc.*;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 
+/**
+ * @author zhangcb
+ */
 @Slf4j
 public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
 

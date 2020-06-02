@@ -10,6 +10,7 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * Rpc 通道，用于发送信息
+ * @author zhangcb
  */
 @Data
 public abstract class RpcChannel {
@@ -26,12 +27,30 @@ public abstract class RpcChannel {
     public RpcChannel(){
         id = System.currentTimeMillis()*10000000+ ThreadLocalRandom.current().nextInt(1000000,9999999);
     }
-
+    
+    /**
+     * start channel
+     */
     public abstract void start();
     
+    /**
+     * ping channel with connected
+     */
     public abstract void ping();
-
+    
+    /**
+     * connect to server
+     * @return
+     * @throws TimeoutException
+     */
     public abstract boolean connect() throws TimeoutException;
-
+    
+    /**
+     * write message to server
+     * @param name
+     * @param argBody
+     * @param stream
+     * @return
+     */
     public abstract Integer write(String name, byte[] argBody, Stream<Message> stream);
 }
