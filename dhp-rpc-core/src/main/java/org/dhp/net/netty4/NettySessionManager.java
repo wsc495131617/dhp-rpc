@@ -28,6 +28,7 @@ public class NettySessionManager extends SessionManager {
         if(old != null ){
             session = old;
         }
+        log.info("create session {}", connection);
         return session;
     }
     

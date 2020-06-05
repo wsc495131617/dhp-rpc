@@ -30,6 +30,7 @@ public class DhpProperties {
     
     ChannelType type = ChannelType.Grizzly;
     int port;
+    int workThread;
     int timeout = 15000;
     List<Node> nodes;
 }

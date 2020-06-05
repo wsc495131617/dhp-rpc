@@ -17,6 +17,7 @@
 ```java
 @EnableConfigurationProperties(DhpProperties.class)
 @EnableDhpRpcServer
+
 ```
 
 ## 既开放了服务端，又需要调用别的服务作为客户端
@@ -24,6 +25,11 @@
 @EnableConfigurationProperties(DhpProperties.class)
 @EnableDhpRpcClient
 @EnableDhpRpcServer
+
+// or
+
+@EnableConfigurationProperties(DhpProperties.class)
+@EnableDhpRpcMiddle
 
 ```
 

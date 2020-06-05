@@ -69,6 +69,7 @@ public class GrizzlyRpcChannel extends RpcChannel {
             builder.setTcpNoDelay(true);
             builder.setKeepAlive(true);
             builder.setLinger(0);
+            //作为客户端，线程切换的事情交给发送端
             builder.setIOStrategy(SameThreadIOStrategy.getInstance());
 
             transport = builder.build();
