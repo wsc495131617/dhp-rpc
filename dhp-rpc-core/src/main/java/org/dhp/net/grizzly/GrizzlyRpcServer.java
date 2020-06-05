@@ -10,6 +10,7 @@ import org.glassfish.grizzly.filterchain.TransportFilter;
 import org.glassfish.grizzly.nio.transport.TCPNIOTransport;
 import org.glassfish.grizzly.nio.transport.TCPNIOTransportBuilder;
 import org.glassfish.grizzly.strategies.SameThreadIOStrategy;
+import org.glassfish.grizzly.threadpool.ThreadPoolConfig;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -20,9 +21,11 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class GrizzlyRpcServer implements IRpcServer {
     int port;
+    int workThread = 4;
     GrizzlySessionManager sessionManager;
-    public GrizzlyRpcServer(int port) {
+    public GrizzlyRpcServer(int port, int workThread) {
         this.port = port;
+        this.workThread = workThread;
         this.sessionManager = new GrizzlySessionManager();
     }
     TCPNIOTransport transport;
@@ -41,6 +44,7 @@ public class GrizzlyRpcServer implements IRpcServer {
         builder.setTcpNoDelay(true);
         builder.setLinger(0);
         builder.setIOStrategy(SameThreadIOStrategy.getInstance());
+        builder.setSelectorThreadPoolConfig(ThreadPoolConfig.defaultConfig().setCorePoolSize(workThread));
         
         transport = builder.build();
         transport.bind(port);

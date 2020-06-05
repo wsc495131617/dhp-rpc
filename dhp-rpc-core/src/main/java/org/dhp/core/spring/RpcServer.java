@@ -32,9 +32,9 @@ public class RpcServer implements InitializingBean, DisposableBean {
         }
         if (server == null) {
             if (dhpProperties.type == ChannelType.Netty) {
-                server = new NettyRpcServer(dhpProperties.port);
+                server = new NettyRpcServer(dhpProperties.port, dhpProperties.getWorkThread());
             } else {
-                server = new GrizzlyRpcServer(dhpProperties.port);
+                server = new GrizzlyRpcServer(dhpProperties.port, dhpProperties.getWorkThread());
             }
             server.start(methodManager);
             log.info("RpcServer({}) started!", dhpProperties.getPort());

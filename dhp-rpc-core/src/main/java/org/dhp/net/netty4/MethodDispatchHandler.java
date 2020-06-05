@@ -31,7 +31,12 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
         sessionManager.destorySession(ctx.channel());
         super.handlerRemoved(ctx);
     }
-    
+
+    @Override
+    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        super.handlerAdded(ctx);
+    }
+
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         NettyMessage message = (NettyMessage) msg;
         Session session = sessionManager.getSession(ctx.channel());
@@ -92,21 +97,31 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
             } else {
                 Object param = ProtostuffUtils.deserialize(message.getData(), (Class<?>) paramTypes[0]);
                 Object result = null;
+                Throwable throwable = null;
                 try {
                     result = command.getMethod().invoke(command.getBean(), new Object[]{param});
                 } catch (RuntimeException e) {
                     log.error(e.getMessage(), e);
+                    throwable = e;
                 } catch (IllegalAccessException e) {
+                    throwable = e;
                 } catch (InvocationTargetException e) {
                     Throwable cause = e.getCause();
                     log.error(cause.getMessage(), cause);
+                    throwable = cause;
                 }
+
                 NettyMessage retMessage = new NettyMessage();
                 if (command.getType() == MethodType.Default || command.getType() == MethodType.List) {// resp call(req)
                     retMessage.setId(message.getId());
-                    retMessage.setStatus(MessageStatus.Completed);
+                    if (throwable != null) {
+                        retMessage.setStatus(MessageStatus.Failed);
+                        retMessage.setData(MethodDispatchUtils.dealFailed(command, throwable));
+                    } else {
+                        retMessage.setStatus(MessageStatus.Completed);
+                        retMessage.setData(MethodDispatchUtils.dealResult(command, result));
+                    }
                     retMessage.setMetadata(message.getMetadata());
-                    retMessage.setData(MethodDispatchUtils.dealResult(command, result));
                     retMessage.setCommand(command.getName());
                     ctx.channel().writeAndFlush(retMessage);
                 } else if (command.getType() == MethodType.Future) {// future<resp> call(req)
@@ -119,6 +134,9 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
                     } else {
                         StreamFuture<Object> future = (StreamFuture) result;
                         future.addStream(stream);
+                        //加入到session管理里面，当session销毁，异步future就需要被cancel
+                        session.addFuture(future);
+
                     }
                 }
             }

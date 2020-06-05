@@ -1,5 +1,6 @@
 package org.dhp.core.rpc;
 
+import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.rpc.StreamFuture;
 
@@ -9,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * @author zhangcb
  */
+@Slf4j
 public abstract class Session {
     protected Long id;
     public boolean isRegister() {
@@ -45,5 +47,6 @@ public abstract class Session {
             streamFuture.cancel(false);
         });
         futures.clear();
+        log.info("create session {}", this);
     }
 }

@@ -35,7 +35,7 @@ public class RpcMessageDecoder extends ByteToMessageDecoder {
         }
         while (in.readableBytes() >= dataLength - 4) {
             in.resetReaderIndex();
-            ByteBuf msgBuf = Unpooled.buffer();
+            ByteBuf msgBuf = Unpooled.buffer(dataLength);
             in.readBytes(msgBuf, dataLength);
             NettyMessage msg = new NettyMessage(msgBuf);
             list.add(msg);
