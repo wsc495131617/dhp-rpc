@@ -6,12 +6,9 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import lombok.extern.slf4j.Slf4j;
-import org.dhp.common.rpc.SimpleStream;
 import org.dhp.common.rpc.Stream;
-import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.rpc.*;
 
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -83,28 +80,7 @@ public class NettyRpcChannel extends RpcChannel {
             } catch (Exception e) {
                 throw new RpcException(RpcErrorCode.UNREACHABLE_NODE);
             }
-            byte[] idBytes = ProtostuffUtils.serialize(Long.class, this.getId());
-            FutureImpl<Message> mfuture = new FutureImpl<>();
-            Stream<Message> stream = new SimpleStream<Message>() {
-                @Override
-                public void onNext(Message value) {
-                    mfuture.result(value);
-                }
-            };
-            mfuture.addStream(stream);
-            write("register", idBytes, stream);
-            Message resp = null;
-            try {
-                resp = mfuture.get();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-            }
-            if (resp != null && resp.getStatus() == MessageStatus.Completed) {
-                return true;
-            }
-            return false;
+            return register();
         }
         return true;
     }

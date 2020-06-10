@@ -1,7 +1,7 @@
 package org.dhp.core.rpc;
 
-import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
+import org.dhp.common.utils.JacksonUtil;
 import org.dhp.common.utils.ProtostuffUtils;
 
 import java.lang.reflect.ParameterizedType;
@@ -14,7 +14,7 @@ public class MethodDispatchUtils {
     public static byte[] dealFailed(ServerCommand command, Throwable e) {
         String throwableClassName = e.getClass().getName();
         String throwableMessage = e.getMessage();
-        String throwableContent = JSON.toJSONString(e);
+        String throwableContent = JacksonUtil.bean2Json(e);
         RpcFailedResponse response = new RpcFailedResponse();
         response.setClsName(throwableClassName);
         response.setMessage(throwableMessage);

@@ -5,6 +5,14 @@ package org.dhp.core.rpc;
  */
 public class RpcException extends RuntimeException {
     RpcErrorCode code;
+
+    public RpcException(){
+    }
+
+    public void setCode(RpcErrorCode code) {
+        this.code = code;
+    }
+
     public RpcException(RpcErrorCode code) {
         super(code.name());
         this.code = code;
