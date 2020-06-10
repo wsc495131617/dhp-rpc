@@ -112,7 +112,7 @@ public class MethodDispatchFilter extends BaseFilter {
                     throwable = e;
                 } catch (InvocationTargetException e) {
                     Throwable cause = e.getCause();
-                    log.error(cause.getMessage(), cause);
+                    log.error(e.getMessage(), e);
                     throwable = cause;
                 }
                 GrizzlyMessage retMessage = new GrizzlyMessage();

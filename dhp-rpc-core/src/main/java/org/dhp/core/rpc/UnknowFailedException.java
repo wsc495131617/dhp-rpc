@@ -1,6 +1,6 @@
 package org.dhp.core.rpc;
 
-import com.alibaba.fastjson.JSON;
+import org.dhp.common.utils.JacksonUtil;
 
 import java.lang.reflect.Constructor;
 
@@ -26,7 +26,7 @@ public class UnknowFailedException extends RuntimeException {
         }
         //尝试反序列化
         try {
-            Throwable e = (Throwable)JSON.parseObject(content, exceptionCls);
+            Throwable e = (Throwable) JacksonUtil.json2Bean(content, exceptionCls);
             return e;
         } catch (Exception e){
             Constructor[] constructors = exceptionCls.getConstructors();

@@ -1,9 +1,7 @@
 package org.dhp.net.grizzly;
 
 import lombok.extern.slf4j.Slf4j;
-import org.dhp.common.rpc.SimpleStream;
 import org.dhp.common.rpc.Stream;
-import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.rpc.*;
 import org.dhp.core.spring.FrameworkException;
 import org.glassfish.grizzly.Connection;
@@ -43,7 +41,9 @@ public class GrizzlyRpcChannel extends RpcChannel {
             fbuilder.add(new BaseFilter(){
                 @Override
                 public NextAction handleClose(FilterChainContext ctx) throws IOException {
-                    log.info("connection:{} closed!", ctx.getConnection());
+                    Connection connection = ctx.getConnection();
+                    readyToCloseConns.remove(connection);
+                    log.info("connection:{} closed!", connection);
                     return super.handleClose(ctx);
                 }
     
@@ -91,20 +91,7 @@ public class GrizzlyRpcChannel extends RpcChannel {
         try {
             log.info("connect to {}:{}", this.getHost(), this.getPort());
             connection = (TCPNIOConnection) transport.connect(this.getHost(), this.getPort()).get(this.getTimeout(), TimeUnit.MILLISECONDS);
-            byte[] idBytes = ProtostuffUtils.serialize(Long.class, this.getId());
-            FutureImpl<Message> future = new FutureImpl<>();
-            Stream<Message> stream = new SimpleStream<Message>(){
-                @Override
-                public void onNext(Message value) {
-                    future.result(value);
-                }
-            };
-            write("register", idBytes, stream);
-            Message resp = future.get();
-            if(resp != null && resp.getStatus() == MessageStatus.Completed){
-                return true;
-            }
-            return false;
+            return register();
         } catch (InterruptedException e) {
             log.warn(e.getMessage(), e);
         } catch (ExecutionException | TimeoutException e) {

@@ -1,17 +1,19 @@
 package org.dhp.core.rpc;
 
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.dhp.common.rpc.SimpleStream;
 import org.dhp.common.rpc.Stream;
+import org.dhp.common.utils.ProtostuffUtils;
 
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 /**
  * Rpc 通道，用于发送信息
  * @author zhangcb
  */
+@Slf4j
 @Data
 public abstract class RpcChannel {
     String name;
@@ -27,7 +29,35 @@ public abstract class RpcChannel {
     public RpcChannel(){
         id = System.currentTimeMillis()*10000000+ ThreadLocalRandom.current().nextInt(1000000,9999999);
     }
-    
+
+    protected boolean register(){
+        byte[] idBytes = ProtostuffUtils.serialize(Long.class, this.getId());
+        FutureImpl<Message> mfuture = new FutureImpl<>();
+        Stream<Message> stream = new SimpleStream<Message>() {
+            @Override
+            public void onNext(Message value) {
+                mfuture.result(value);
+            }
+        };
+        mfuture.addStream(stream);
+        write("register", idBytes, stream);
+        Message resp = null;
+        try {
+            resp = mfuture.get(3, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            log.warn("Register Failed by InterruptedException: "+getHost()+":"+getPort()+" "+e.getMessage(), e);
+        } catch (ExecutionException e) {
+            log.warn("Register Failed by ExecutionException: "+getHost()+":"+getPort()+" "+e.getMessage(), e);
+        } catch (TimeoutException e) {
+            log.warn("Register Failed by TimeoutException: "+getHost()+":"+getPort()+" "+e.getMessage(), e);
+        }
+        if (resp != null && resp.getStatus() == MessageStatus.Completed) {
+            return true;
+        }
+        return false;
+    }
+
+
     /**
      * start channel
      */
