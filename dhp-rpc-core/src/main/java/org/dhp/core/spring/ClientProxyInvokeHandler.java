@@ -14,7 +14,6 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
 import org.springframework.util.StringUtils;
 
-import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -28,7 +27,7 @@ import java.util.concurrent.*;
  * @author zhangcb
  */
 @Slf4j
-public class ClientProxyInvokeHandler implements InvocationHandler, ImportBeanDefinitionRegistrar, BeanFactoryAware, InitializingBean {
+public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBeanDefinitionRegistrar, BeanFactoryAware, InitializingBean {
 
     RpcChannelPool channelPool;
 

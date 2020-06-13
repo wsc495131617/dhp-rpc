@@ -2,6 +2,7 @@ package org.dhp.core.spring;
 
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.annotation.DService;
+import org.dhp.core.rpc.RpcChannelPool;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.factory.BeanClassLoaderAware;
@@ -114,9 +115,14 @@ public class DhpClientRegister implements ImportBeanDefinitionRegistrar, Applica
                 }
             }
         }
-        //添加Bean
+        //添加ClientProxyInvokeHandler
         BeanDefinition invokeBeanDefinition = BeanDefinitionBuilder.rootBeanDefinition(ClientProxyInvokeHandler.class).getBeanDefinition();
         registry.registerBeanDefinition(invokeBeanDefinition.getBeanClassName(), invokeBeanDefinition);
+
+        //添加RpcChannelPool
+        BeanDefinition poolBeanDefinition = BeanDefinitionBuilder.rootBeanDefinition(RpcChannelPool.class).getBeanDefinition();
+        registry.registerBeanDefinition(poolBeanDefinition.getBeanClassName(), poolBeanDefinition);
+
     }
     
     

@@ -44,7 +44,7 @@ public class ClientProxyFactoryBean implements FactoryBean<Object>, Initializing
     }
     
     private Object createProxy() {
-        ClientProxyInvokeHandler invocationHandler = beanFactory.getBean(ClientProxyInvokeHandler.class);
+        IClientInvokeHandler invocationHandler = beanFactory.getBean(IClientInvokeHandler.class);
         Object proxy = Proxy.newProxyInstance(invocationHandler.getClass().getClassLoader(), new Class<?>[]{classType}, invocationHandler);
         return proxy;
     }
