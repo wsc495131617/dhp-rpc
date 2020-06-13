@@ -10,7 +10,6 @@ import org.springframework.util.StringUtils;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author zhangcb
  */
 @Slf4j
-public class RpcServerMethodManager {
+public class RpcServerMethodManager implements IMethodManager{
 
     Map<String, ServerCommand> commands = new ConcurrentHashMap<>();
 
@@ -78,10 +77,6 @@ public class RpcServerMethodManager {
         }
         command.setType(methodType);
 
-    }
-
-    public List<ServerCommand> getAllCommands() {
-        return new LinkedList<>(commands.values());
     }
 
     public ServerCommand getCommand(String command) {

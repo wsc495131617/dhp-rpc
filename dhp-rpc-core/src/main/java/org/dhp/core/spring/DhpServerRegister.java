@@ -2,17 +2,14 @@ package org.dhp.core.spring;
 
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.annotation.DService;
-import org.dhp.core.rpc.RpcServerMethodManager;
+import org.dhp.core.rpc.IMethodManager;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.context.ResourceLoaderAware;
-import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
-import org.springframework.core.PriorityOrdered;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.ResourceLoader;
 
@@ -33,7 +30,7 @@ public class DhpServerRegister implements BeanPostProcessor, ResourceLoaderAware
     private BeanFactory beanFactory;
 
     @Resource
-    RpcServerMethodManager methodManager;
+    IMethodManager methodManager;
     
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {

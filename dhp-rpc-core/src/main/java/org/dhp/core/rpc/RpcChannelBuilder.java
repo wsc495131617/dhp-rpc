@@ -51,7 +51,6 @@ public class RpcChannelBuilder {
         channel.setPort(this.port);
         channel.setName(this.name);
         channel.setTimeout(this.timeout);
-        channel.start();
         return channel;
     }
 }
