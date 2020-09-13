@@ -66,7 +66,12 @@ public class NettyRpcServer implements IRpcServer {
         }
 
     }
-    
+
+    @Override
+    public void running() {
+
+    }
+
     @Override
     public void shutdown() {
         boss.shutdownGracefully();

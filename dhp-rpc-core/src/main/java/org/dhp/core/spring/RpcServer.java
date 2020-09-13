@@ -38,6 +38,18 @@ public class RpcServer implements InitializingBean, DisposableBean {
             }
             server.start(methodManager);
             log.info("RpcServer({}) started!", dhpProperties.getPort());
+            new Thread(()->run()).start();
+        }
+    }
+
+    protected void run() {
+        while(true) {
+            try {
+                server.running();
+                Thread.sleep(15000);
+            } catch (Throwable e) {
+                log.error("Shutdown out of running", e);
+            }
         }
     }
     

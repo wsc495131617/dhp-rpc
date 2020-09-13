@@ -12,6 +12,11 @@ public interface IRpcServer {
      * @throws IOException
      */
     void start(RpcServerMethodManager methodManager) throws IOException;
+
+    /**
+     * is running
+     */
+    void running();
     
     /**
      * shutdown server
