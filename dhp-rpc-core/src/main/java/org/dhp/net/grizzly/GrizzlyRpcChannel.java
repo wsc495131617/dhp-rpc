@@ -53,7 +53,9 @@ public class GrizzlyRpcChannel extends RpcChannel {
                     if(log.isDebugEnabled()) {
                         log.debug("recv: {}", message);
                     }
-                    //close
+                    //update active time
+                    activeTime = System.currentTimeMillis();
+                    //waiting to close message, reject all new request
                     if(message.getCommand().equals("close")){
                         Connection connection = ctx.getConnection();
                         readyToCloseConns.add(connection);

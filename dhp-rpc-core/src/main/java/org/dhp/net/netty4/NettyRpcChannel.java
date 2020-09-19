@@ -57,6 +57,8 @@ public class NettyRpcChannel extends RpcChannel {
                                 if (log.isDebugEnabled()) {
                                     log.debug("recv: {}", msg);
                                 }
+                                //update active time
+                                activeTime = System.currentTimeMillis();
                                 //close
                                 if (message.getCommand().equals("close")) {
                                     Channel channel = ctx.channel();
@@ -122,6 +124,10 @@ public class NettyRpcChannel extends RpcChannel {
 
     @Override
     public void ping() {
+        //5秒不活跃就发起心跳，如果一直有通讯，就不用发
+        if(System.currentTimeMillis()-activeTime>=15000) {
+            return;
+        }
         Stream<NettyMessage> stream = new Stream<NettyMessage>() {
             @Override
             public void onCanceled() {
@@ -131,7 +137,9 @@ public class NettyRpcChannel extends RpcChannel {
             public void onNext(NettyMessage value) {
                 activeTime = System.currentTimeMillis();
                 setActive(true);
-                log.info("pong " + new String(value.getData()));
+                if(log.isDebugEnabled()) {
+                    log.debug("pong " + new String(value.getData()));
+                }
             }
 
             @Override
