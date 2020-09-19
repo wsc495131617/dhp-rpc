@@ -23,6 +23,9 @@ public class MethodDispatchUtils {
     }
 
     public static byte[] dealResult(ServerCommand command, Object result) {
+        if (result == null) {
+            return new byte[0];
+        }
         try {
             if(command.getType() == MethodType.Default) {
                 return ProtostuffUtils.serialize((Class) command.getMethod().getReturnType(), result);

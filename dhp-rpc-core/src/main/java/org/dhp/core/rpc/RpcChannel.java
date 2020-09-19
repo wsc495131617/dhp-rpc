@@ -11,6 +11,9 @@ import java.util.concurrent.*;
 
 /**
  * Rpc 通道，用于发送信息
+ *
+ * 对于断开重连的尝试，假设channel在心跳间隔时间内重连上，那么channel继续使用
+ *
  * @author zhangcb
  */
 @Slf4j
@@ -22,6 +25,8 @@ public abstract class RpcChannel {
     long timeout;
     ChannelType type;
     Long id;
+    protected long activeTime = System.currentTimeMillis();
+    protected boolean active;
     
     //等待关闭的连接，有可能是网络延迟，或者服务端准备关闭的
     protected Set<Object> readyToCloseConns = ConcurrentHashMap.newKeySet();
@@ -52,11 +57,11 @@ public abstract class RpcChannel {
             log.warn("Register Failed by TimeoutException: "+getHost()+":"+getPort()+" "+e.getMessage(), e);
         }
         if (resp != null && resp.getStatus() == MessageStatus.Completed) {
+            this.active = true;
             return true;
         }
         return false;
     }
-
 
     /**
      * start channel
@@ -67,6 +72,11 @@ public abstract class RpcChannel {
      * ping channel with connected
      */
     public abstract void ping();
+
+    /**
+     * is close(different from active)
+     */
+    public abstract boolean isClose();
     
     /**
      * connect to server
@@ -74,7 +84,7 @@ public abstract class RpcChannel {
      * @throws TimeoutException
      */
     public abstract boolean connect() throws TimeoutException;
-    
+
     /**
      * write message to server
      * @param name
@@ -83,4 +93,6 @@ public abstract class RpcChannel {
      * @return
      */
     public abstract Integer write(String name, byte[] argBody, Stream<Message> stream);
+
+    public abstract void close();
 }

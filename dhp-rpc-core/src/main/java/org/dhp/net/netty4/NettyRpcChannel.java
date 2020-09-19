@@ -86,8 +86,6 @@ public class NettyRpcChannel extends RpcChannel {
         return true;
     }
 
-    private long activeTime = System.currentTimeMillis();
-
     public NettyMessage sendMessage(String command, byte[] body) {
         synchronized (channel) {
             while (readyToCloseConns.contains(channel)) {
@@ -118,6 +116,11 @@ public class NettyRpcChannel extends RpcChannel {
     }
 
     @Override
+    public boolean isClose() {
+        return channel == null || !channel.isActive();
+    }
+
+    @Override
     public void ping() {
         Stream<NettyMessage> stream = new Stream<NettyMessage>() {
             @Override
@@ -127,6 +130,7 @@ public class NettyRpcChannel extends RpcChannel {
             @Override
             public void onNext(NettyMessage value) {
                 activeTime = System.currentTimeMillis();
+                setActive(true);
                 log.info("pong " + new String(value.getData()));
             }
 
@@ -149,4 +153,8 @@ public class NettyRpcChannel extends RpcChannel {
         return message.getId();
     }
 
+    @Override
+    public void close() {
+        channel.close();
+    }
 }

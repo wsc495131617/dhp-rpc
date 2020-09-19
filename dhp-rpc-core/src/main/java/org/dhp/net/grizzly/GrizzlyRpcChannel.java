@@ -57,6 +57,7 @@ public class GrizzlyRpcChannel extends RpcChannel {
                     if(message.getCommand().equals("close")){
                         Connection connection = ctx.getConnection();
                         readyToCloseConns.add(connection);
+                        active = false;
                     } else {
                         streamManager.handleMessage(message);
                     }
@@ -100,27 +101,13 @@ public class GrizzlyRpcChannel extends RpcChannel {
         return false;
     }
 
-    private long activeTime = System.currentTimeMillis();
-    
+    @Override
+    public boolean isClose() {
+        return (connection != null && connection.isOpen() && connection.canWrite());
+    }
+
     protected GrizzlyMessage sendMessage(String command, byte[] body){
-        synchronized (connection){
-            while(readyToCloseConns.contains(connection)){
-                try {
-                    log.info("waiting for switch connection");
-                    connect();
-                    log.info("switch connection success, {}", connection);
-                } catch (RpcException e){
-                    if (e.getCode() == RpcErrorCode.UNREACHABLE_NODE) {
-                        continue;
-                    }
-                } finally {
-                    try {
-                        Thread.sleep(3000);
-                    } catch (InterruptedException e) {
-                    }
-                }
-            }
-        }
+        checkConnection();
         GrizzlyMessage message = new GrizzlyMessage();
         message.setId(_ID.incrementAndGet());
         message.setCommand(command);
@@ -133,8 +120,38 @@ public class GrizzlyRpcChannel extends RpcChannel {
         return message;
     }
 
+    private void checkConnection() {
+        synchronized (connection){
+            long st = System.currentTimeMillis();
+            //不超过5s以内进行重试，如果真连不上，就放弃当前channel
+            while(readyToCloseConns.contains(connection) && System.currentTimeMillis() - st>5000){
+                try {
+                    log.info("waiting for switch connection");
+                    connect();
+                    log.info("switch connection success, {}", connection);
+                    return;
+                } catch (RpcException e){
+                    if (e.getCode() == RpcErrorCode.UNREACHABLE_NODE) {
+                        continue;
+                    }
+                } finally {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                    }
+                }
+            }
+            active = false;
+        }
+    }
+
     @Override
     public void ping() {
+        //检查activeTime是否已经超过1分钟了，不然就不管是否出发close时间，直接设置为不可用
+        if(System.currentTimeMillis()-activeTime>60000) {
+            active = false;
+            return;
+        }
         GrizzlyMessage message = sendMessage("ping", (System.currentTimeMillis()+"").getBytes());
         Stream<GrizzlyMessage> stream = new Stream<GrizzlyMessage>() {
             @Override
@@ -143,6 +160,7 @@ public class GrizzlyRpcChannel extends RpcChannel {
             @Override
             public void onNext(GrizzlyMessage value) {
                 activeTime = System.currentTimeMillis();
+                setActive(true);
                 if(log.isDebugEnabled()) {
                     log.debug("pong " + new String(value.getData()));
                 }
@@ -162,5 +180,10 @@ public class GrizzlyRpcChannel extends RpcChannel {
         GrizzlyMessage message = sendMessage(name, argBody);
         streamManager.setStream(message, messageStream);
         return message.getId();
+    }
+
+    @Override
+    public void close() {
+        connection.close();
     }
 }

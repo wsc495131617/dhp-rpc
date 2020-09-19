@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 public class ProtostuffUtils {
-    
+
     @Data
     static class ObjectWrapper {
         Object data;
@@ -46,6 +46,9 @@ public class ProtostuffUtils {
     }
 
     static <T> byte[] _serialize(T source, RuntimeSchema<T> schema) {
+        if(source == null) {
+            return EMPTY;
+        }
         LinkedBuffer buffer = null;
         byte[] result;
         try {
@@ -63,6 +66,14 @@ public class ProtostuffUtils {
     }
 
     public static <T> T deserialize(byte[] source, Class<T> typeClass) {
+        if (source == null || source.length == 0) {
+            try {
+                return typeClass.newInstance();
+            } catch (InstantiationException e) {
+            } catch (IllegalAccessException e) {
+            }
+            return null;
+        }
         RuntimeSchema<T> schema;
         T newInstance;
         try {
@@ -99,7 +110,7 @@ public class ProtostuffUtils {
     
     public static <T> List<T> deserializeList(byte[] bytes, Class<T> itemTypeClass){
         if(bytes == null || bytes.length == 0){
-            return new LinkedList<>();
+            return null;
         }
         Schema<T> schema = RuntimeSchema.getSchema(itemTypeClass);
         List<T> result = null;
