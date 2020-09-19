@@ -65,6 +65,15 @@ public class GrizzlyRpcServer implements IRpcServer {
             }
         });
         transport.start();
+
+        Thread awaitThread = new Thread("dhp-grizzly-" + this.hashCode()) {
+            public void run() {
+                running();
+            }
+        };
+        awaitThread.setContextClassLoader(this.getClass().getClassLoader());
+        awaitThread.setDaemon(false);
+        awaitThread.start();
     }
 
     @Override

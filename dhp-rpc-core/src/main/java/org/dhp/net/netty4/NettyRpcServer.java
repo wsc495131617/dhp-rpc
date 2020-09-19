@@ -10,10 +10,6 @@ import org.dhp.core.rpc.IRpcServer;
 import org.dhp.core.rpc.RpcServerMethodManager;
 import org.dhp.core.rpc.SessionManager;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 /**
  * @author zhangcb
  */
@@ -21,15 +17,15 @@ import java.util.concurrent.TimeoutException;
 public class NettyRpcServer implements IRpcServer {
 
     int port;
-    
+
     SessionManager sessionManager;
-    
+
     final ServerBootstrap serverBootstrap = new ServerBootstrap();
     final EventLoopGroup boss = new NioEventLoopGroup(1);
     EventLoopGroup worker;
 
     int workThread = 4;
-    
+
     public NettyRpcServer(int port, int workThread) {
         this.port = port;
         this.workThread = workThread;
@@ -38,9 +34,9 @@ public class NettyRpcServer implements IRpcServer {
 
     @Override
     public void start(RpcServerMethodManager methodManager) {
-    
+
         worker = new NioEventLoopGroup(4);
-    
+
         serverBootstrap.group(boss, worker);
         serverBootstrap.channel(NioServerSocketChannel.class);
 
@@ -57,14 +53,21 @@ public class NettyRpcServer implements IRpcServer {
         serverBootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         serverBootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);//维持链接的活跃，清除死链接
         serverBootstrap.childOption(ChannelOption.TCP_NODELAY, true);//关闭延迟发送
-        try {
-            serverBootstrap.bind("0.0.0.0", port).sync().channel().closeFuture().get(1, TimeUnit.SECONDS);
-            log.info("start success");
-        } catch (InterruptedException e) {
-        } catch (ExecutionException e) {
-        } catch (TimeoutException e) {
-        }
 
+        Thread awaitThread = new Thread("dhp-netty-waiting-" + this.hashCode()) {
+            public void run() {
+                try {
+                    serverBootstrap.bind("0.0.0.0", port).sync().channel().closeFuture().sync();
+                    //服务关闭
+                    log.warn("netty is closed!");
+                } catch (Exception e) {
+                    log.warn("start failed" + e.getMessage(), e);
+                }
+            }
+        };
+        awaitThread.setContextClassLoader(this.getClass().getClassLoader());
+        awaitThread.setDaemon(false);
+        awaitThread.start();
     }
 
     @Override
@@ -74,8 +77,6 @@ public class NettyRpcServer implements IRpcServer {
 
     @Override
     public void shutdown() {
-//        boss.shutdownGracefully();
-//        worker.shutdownGracefully();
         sessionManager.forceClose();
     }
 }
