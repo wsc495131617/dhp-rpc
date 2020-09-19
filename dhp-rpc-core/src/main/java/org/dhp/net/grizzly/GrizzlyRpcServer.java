@@ -66,6 +66,12 @@ public class GrizzlyRpcServer implements IRpcServer {
         });
         transport.start();
     }
+
+    @Override
+    public void running() {
+
+    }
+
     @Override
     public void shutdown(){
         transport.shutdown(1, TimeUnit.SECONDS);
