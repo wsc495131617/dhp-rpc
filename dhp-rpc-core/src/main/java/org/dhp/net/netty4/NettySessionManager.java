@@ -14,36 +14,45 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 public class NettySessionManager extends SessionManager {
-    
+
     Map<Channel, NettySession> allSessions = new ConcurrentHashMap<>();
-    
+
     @Override
     public Session getSession(Object connection) {
-        if(allSessions.containsKey(connection)){
+        if (allSessions.containsKey(connection)) {
             return allSessions.get(connection);
         }
-        Channel channel = (Channel)connection;
+        if (closing) {
+            log.warn("It's closing, can't create session: {}", connection);
+            return null;
+        }
+        Channel channel = (Channel) connection;
         NettySession session = new NettySession(channel);
         NettySession old = allSessions.putIfAbsent(channel, session);
-        if(old != null ){
+        if (old != null) {
             session = old;
         }
         log.info("create session {}", connection);
+        //发送一条还原消息
+        session.write(new NettyMessageBuilder()
+                .setCommand("registered")
+                .setStatus(MessageStatus.Completed)
+                .setData((System.currentTimeMillis() + "").getBytes()).build());
         return session;
     }
-    
+
     @Override
     public void destorySession(Object connection) {
         NettySession session = allSessions.remove(connection);
-        if(session != null){
+        if (session != null) {
             session.destory();
         }
     }
-    
+
     @Override
     public void forceClose() {
         closing = true;
-        log.info("close netty sessions: {}", allSessions.size());
+        log.info("call all sessions close message: {}", allSessions.size());
         allSessions.values().parallelStream().forEach(session -> {
             NettyMessage message = new NettyMessage();
             message.setId(0);
@@ -52,5 +61,17 @@ public class NettySessionManager extends SessionManager {
             session.write(message);
             log.info("closing session: {}", session);
         });
+        //同步等待session断开情况
+        long st = System.currentTimeMillis();
+        //最多等待5秒
+        while (System.currentTimeMillis() - st < 5000) {
+            if (allSessions.isEmpty()) {
+                break;
+            }
+            try {
+                Thread.sleep(100);
+            } catch (Exception e) {
+            }
+        }
     }
 }

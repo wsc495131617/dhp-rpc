@@ -69,12 +69,8 @@ public class NettyRpcServer implements IRpcServer {
     
     @Override
     public void shutdown() {
-        boss.shutdownGracefully();
-        worker.shutdownGracefully();
+//        boss.shutdownGracefully();
+//        worker.shutdownGracefully();
         sessionManager.forceClose();
-        try {
-            Thread.sleep(5000);
-        } catch (InterruptedException e) {
-        }
     }
 }

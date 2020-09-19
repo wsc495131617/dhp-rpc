@@ -46,15 +46,11 @@ public class DhpClientRegister implements ImportBeanDefinitionRegistrar, Applica
     
     @Override
     public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry, BeanNameGenerator importBeanNameGenerator) {
-        Map<String, Object> annotationAttributes = importingClassMetadata.getAnnotationAttributes(EnableDhpRpcClient.class.getName());
-        Map<String, Object> middleAttributes = importingClassMetadata.getAnnotationAttributes(EnableDhpRpcMiddle.class.getName());
+        Map<String, Object> annotationAttributes = importingClassMetadata.getAnnotationAttributes(DhpRpcClientScanner.class.getName());
         ClassPathScanningCandidateComponentProvider scanner = getClassScanner();
         String[] basePackages = null;
         if (annotationAttributes != null) {
             basePackages = (String[]) annotationAttributes.get("basePackages");
-        }
-        if(middleAttributes != null){
-            basePackages = (String[]) middleAttributes.get("basePackages");
         }
         //PrintServiceScan的basePackages默认为空数组
         if (basePackages == null || basePackages.length == 0) {

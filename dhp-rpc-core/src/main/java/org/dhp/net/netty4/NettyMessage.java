@@ -43,7 +43,9 @@ public class NettyMessage extends Message {
     }
 
     protected void unpack(ByteBuf buf) {
-        log.info("unpack: {}", buf);
+        if (log.isDebugEnabled()) {
+            log.debug("unpack: {}", buf);
+        }
         int packLen = buf.readInt();
         this.setLength(packLen);
         this.setId(buf.readInt());
@@ -111,7 +113,9 @@ public class NettyMessage extends Message {
         buffer.writeBytes(outputStream.buffer());
         if (data != null)
             buffer.writeBytes(data);
-        log.info("pack: {}", buffer);
+        if (log.isDebugEnabled()) {
+            log.info("pack: {}", buffer);
+        }
         return buffer;
     }
 }

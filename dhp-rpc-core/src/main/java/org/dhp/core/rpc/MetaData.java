@@ -9,8 +9,9 @@ import java.util.Map;
 public class MetaData {
     Map<Integer, String> data = new HashMap<>();
 
-    public void add(Integer key, String value) {
+    public MetaData add(Integer key, String value) {
         data.put(key, value);
+        return this;
     }
 
     public String remove(Integer key) {

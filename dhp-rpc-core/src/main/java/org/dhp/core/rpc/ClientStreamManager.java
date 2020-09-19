@@ -21,6 +21,9 @@ public class ClientStreamManager {
     public Throwable dealThrowable(Message message) {
         RpcFailedResponse failedResponse = ProtostuffUtils.deserialize(message.getData(), RpcFailedResponse.class);
         log.warn("throwable: {},{}", failedResponse.getClsName(), failedResponse.getMessage());
+        if (RpcException.class.getName().equalsIgnoreCase(failedResponse.getClsName())) {
+            return new RpcException(RpcErrorCode.valueOf(failedResponse.getMessage()));
+        }
         if(log.isDebugEnabled())
             log.debug("content: {}", failedResponse.getContent());
         return new UnknowFailedException(failedResponse.getClsName(), failedResponse.getMessage(), failedResponse.getContent()).getCause();

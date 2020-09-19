@@ -78,6 +78,7 @@ public class NettyRpcChannel extends RpcChannel {
                 log.info("connect to {}:{}", this.getHost(), this.getPort());
                 this.channel = b.connect(this.getHost(), this.getPort()).sync().channel();
             } catch (Exception e) {
+                log.warn("connect failed: "+e.getMessage(), e);
                 throw new RpcException(RpcErrorCode.UNREACHABLE_NODE);
             }
             return register();

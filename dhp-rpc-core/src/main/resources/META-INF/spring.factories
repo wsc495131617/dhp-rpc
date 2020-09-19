@@ -1,0 +1,6 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  org.dhp.core.spring.boot.DhpAutoConfiguration,\
+  org.dhp.core.spring.DhpServerRegister,\
+  org.dhp.core.rpc.RpcServerMethodManager,\
+  org.dhp.core.spring.DhpClientRegister,\
+  org.dhp.core.spring.DhpProperties
