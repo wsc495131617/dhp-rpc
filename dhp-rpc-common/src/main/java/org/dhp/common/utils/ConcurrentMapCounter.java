@@ -6,7 +6,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class ConcurremntMapCounter<K> {
+public class ConcurrentMapCounter<K> {
 
     protected Map<K, AtomicLong> map = new ConcurrentHashMap<>();
 

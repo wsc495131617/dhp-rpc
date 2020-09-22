@@ -11,5 +11,4 @@ public class Node {
     int port;
     String host;
     long timeout;
-    String[] filters;
 }

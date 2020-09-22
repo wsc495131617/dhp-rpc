@@ -8,7 +8,6 @@ import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.InitializingBean;
 
 import javax.annotation.Resource;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,6 +24,10 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
     DhpProperties properties;
 
     protected Map<String, RpcChannel> allChannels = new ConcurrentHashMap<>();
+
+    public Map<String, RpcChannel> getAllChannels() {
+        return allChannels;
+    }
 
     protected Node getNode(Command command) {
         if (command.getNodeName() != null && properties.getNodes() != null) {

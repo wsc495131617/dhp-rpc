@@ -10,6 +10,8 @@
     <modules>
         <module>dhp-rpc-core</module>
         <module>dhp-rpc-common</module>
+        <module>dhp-rpc-monitor</module>
+        <module>dhp-cache</module>
     </modules>
     <packaging>pom</packaging>
     <dependencies>
