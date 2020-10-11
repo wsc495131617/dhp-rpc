@@ -3,23 +3,16 @@ package org.dhp.core.spring;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.annotation.DService;
 import org.dhp.core.rpc.RpcChannelPool;
-import org.springframework.beans.BeansException;
-import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.factory.BeanClassLoaderAware;
-import org.springframework.beans.factory.BeanFactory;
-import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.BeanNameGenerator;
 import org.springframework.beans.factory.support.RootBeanDefinition;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
-import org.springframework.core.PriorityOrdered;
 import org.springframework.core.env.Environment;
 import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
@@ -33,17 +26,13 @@ import java.util.Set;
  * @author zhangcb
  */
 @Slf4j
-public class DhpClientRegister implements ImportBeanDefinitionRegistrar, ApplicationContextAware,
-        BeanFactoryAware, EnvironmentAware, BeanClassLoaderAware, PriorityOrdered {
-    
+public class DhpClientRegister implements ImportBeanDefinitionRegistrar,
+        EnvironmentAware, BeanClassLoaderAware {
+
     private Environment environment;
-    
+
     private ClassLoader classLoader;
-    
-    private ApplicationContext applicationContext;
-    
-    private BeanFactory beanFactory;
-    
+
     @Override
     public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry, BeanNameGenerator importBeanNameGenerator) {
         Map<String, Object> annotationAttributes = importingClassMetadata.getAnnotationAttributes(DhpRpcClientScanner.class.getName());
@@ -76,8 +65,8 @@ public class DhpClientRegister implements ImportBeanDefinitionRegistrar, Applica
                     if (!cls.isInterface()) {
                         impledClassSet.add(cls);
                     }
-                } catch (Exception e){
-                
+                } catch (Exception e) {
+
                 }
             }
             for (BeanDefinition compDefinition : comps) {
@@ -85,7 +74,7 @@ public class DhpClientRegister implements ImportBeanDefinitionRegistrar, Applica
                     if (compDefinition instanceof AnnotatedBeanDefinition) {
                         //class
                         Class cls = classLoader.loadClass(compDefinition.getBeanClassName());
-    
+
                         boolean isImpled = false;
                         for (Class impledCls : impledClassSet) {
                             if (impledCls == cls || cls.isAssignableFrom(impledCls)) {
@@ -96,13 +85,13 @@ public class DhpClientRegister implements ImportBeanDefinitionRegistrar, Applica
                         if (isImpled) {
                             continue;
                         }
-                        
-                        RootBeanDefinition rbd = new RootBeanDefinition(ClientProxyFactoryBean.class);
-                        MutablePropertyValues propertyValues = new MutablePropertyValues();
-                        propertyValues.add("className", compDefinition.getBeanClassName());
-                        rbd.setPropertyValues(propertyValues);
+
+                        BeanDefinition rbd = BeanDefinitionBuilder.genericBeanDefinition(ClientProxyFactoryBean.class)
+                                .addPropertyValue("className", compDefinition.getBeanClassName())
+                                .setRole(RootBeanDefinition.ROLE_INFRASTRUCTURE)
+                                .getBeanDefinition();
                         log.info("add dhp-proxy: {}", cls.getName());
-                        registry.registerBeanDefinition("dhp-"+cls.getName(), rbd);
+                        registry.registerBeanDefinition(cls.getName(), rbd);
                     } else {
                         log.debug("skip component definition: {}", compDefinition);
                     }
@@ -120,11 +109,11 @@ public class DhpClientRegister implements ImportBeanDefinitionRegistrar, Applica
         registry.registerBeanDefinition(poolBeanDefinition.getBeanClassName(), poolBeanDefinition);
 
     }
-    
-    
+
+
     private ClassPathScanningCandidateComponentProvider getClassScanner() {
         return new ClassPathScanningCandidateComponentProvider(false, this.environment) {
-            
+
             @Override
             protected boolean isCandidateComponent(
                     AnnotatedBeanDefinition beanDefinition) {
@@ -140,30 +129,17 @@ public class DhpClientRegister implements ImportBeanDefinitionRegistrar, Applica
             }
         };
     }
-    
-    @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        this.applicationContext = applicationContext;
-    }
-    
+
+
     @Override
     public void setEnvironment(Environment environment) {
         this.environment = environment;
     }
-    
-    
+
+
     @Override
     public void setBeanClassLoader(ClassLoader classLoader) {
         this.classLoader = classLoader;
     }
-    
-    @Override
-    public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
-        this.beanFactory = beanFactory;
-    }
-    
-    @Override
-    public int getOrder() {
-        return Integer.MIN_VALUE;
-    }
+
 }

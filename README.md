@@ -9,27 +9,15 @@
  ## 客户端使用
  
  ```java
-@EnableConfigurationProperties(DhpProperties.class)
-@EnableDhpRpcClient(basePackages="org.dhp.examples.rpcdemo")
+@DhpRpcClientScanner(basePackages="org.dhp.examples.rpcdemo")
 ```
 
 ## 服务端使用
 ```java
-@EnableConfigurationProperties(DhpProperties.class)
-@EnableDhpRpcServer
+@DhpRpcClientScanner(basePackages="org.dhp.examples.rpcdemo")
 
 ```
 
-## 既开放了服务端，又需要调用别的服务作为客户端
-```java
-@EnableConfigurationProperties(DhpProperties.class)
-@EnableDhpRpcClient
-@EnableDhpRpcServer
-
-// or
-
-@EnableConfigurationProperties(DhpProperties.class)
-@EnableDhpRpcMiddle
 
 ```
 
@@ -38,7 +26,7 @@
 ```yaml
 dhp:
   type: Netty # Grizzly(default) Netty 
-  port: 6001 # Server port
+  port: 6001 # Server port 有该配置就会对外开放dhp服务
   nodes: # downStream nodes
   - name: demo2  # DService(node='demo2')
     host: 127.0.0.1

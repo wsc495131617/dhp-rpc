@@ -11,7 +11,9 @@ public enum RpcErrorCode {
     SEND_MESSAGE_FAILED(1003, "Send message failed"),
     UNREACHABLE_NODE(1004, "Unreachable node"),
     UNKNOWN_EXEPTION(1005, "unknow excption"),
-    TIMEOUT(1006, "timeout");
+    TIMEOUT(1006, "timeout"),
+
+    PARAMETER_ERROR(2001, "parameter error: {}");
 
     private RpcErrorCode(int code, String msg) {
         this.code = code;

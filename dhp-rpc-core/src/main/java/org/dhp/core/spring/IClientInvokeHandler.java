@@ -1,6 +1,7 @@
 package org.dhp.core.spring;
 
-import java.lang.reflect.InvocationHandler;
+import org.springframework.cglib.proxy.InvocationHandler;
+
 
 public interface IClientInvokeHandler extends InvocationHandler {
 

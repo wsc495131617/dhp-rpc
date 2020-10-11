@@ -1,9 +1,11 @@
 package org.dhp.common.rpc;
 
+import lombok.Data;
+
 /**
  * 基础请求
  */
-public class RpcRequest {
-    //幂等
-    Long uuid;
+@Data
+public class RpcRequest<H extends RpcHeader> {
+    H header;
 }

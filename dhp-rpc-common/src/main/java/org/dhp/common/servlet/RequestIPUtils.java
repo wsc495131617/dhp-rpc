@@ -1,7 +1,6 @@
 package org.dhp.common.servlet;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.regex.Pattern;
@@ -56,14 +55,14 @@ public class RequestIPUtils {
     public static String getRemoteIp(HttpServletRequest request, String realIpHeader) {
         //先获取X-Forwarded-For
         String ip = request.getHeader("X-Forwarded-For");
-        if (!StringUtils.isNotBlank(ip) && ip.contains(",")) {
+        if (ip != null && ip.contains(",")) {
             ip = ip.split(",")[0];
         }
-        if (!StringUtils.isNotBlank(ip) && isInetAddress(ip)) {
+        if (ip != null && isInetAddress(ip)) {
             return ip;
         } else {
             ip = request.getHeader(realIpHeader);
-            return !StringUtils.isNotBlank(ip) && isInetAddress(ip) ? ip : request.getRemoteAddr();
+            return ip != null && isInetAddress(ip) ? ip : request.getRemoteAddr();
         }
     }
 }

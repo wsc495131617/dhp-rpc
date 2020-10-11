@@ -78,7 +78,9 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
         cacheCommands.put(method, command);
         return command;
     }
-    
+
+
+
     @Override
     public Object invoke(Object o, Method method, Object[] args) throws Throwable {
         if (isExcludeMethod(method)) {

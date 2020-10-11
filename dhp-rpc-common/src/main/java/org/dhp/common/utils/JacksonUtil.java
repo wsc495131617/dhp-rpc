@@ -1,5 +1,6 @@
 package org.dhp.common.utils;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,9 @@ import java.io.IOException;
 public class JacksonUtil {
 
     private static ObjectMapper mapper = new ObjectMapper();
+    static {
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    }
 
     public static String bean2Json(Object obj) {
         try {
