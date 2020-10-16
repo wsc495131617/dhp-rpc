@@ -12,8 +12,11 @@ public enum RpcErrorCode {
     UNREACHABLE_NODE(1004, "Unreachable node"),
     UNKNOWN_EXEPTION(1005, "unknow excption"),
     TIMEOUT(1006, "timeout"),
+    SEND_MESSAGE_LIMIT(1007, "Send limit"),
 
-    PARAMETER_ERROR(2001, "parameter error: {}");
+    PARAMETER_ERROR(2001, "parameter error: {}"),
+    AUTH_ERROR(2002, "auth error"),
+    AUTH_CODE_ERROR(2004, "code error");//验证码错误
 
     private RpcErrorCode(int code, String msg) {
         this.code = code;
