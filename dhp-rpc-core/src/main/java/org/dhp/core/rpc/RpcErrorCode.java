@@ -10,13 +10,12 @@ public enum RpcErrorCode {
     ILLEGAL_PARAMETER_DEFINITION(1002, "Illegal parameter definition"),
     SEND_MESSAGE_FAILED(1003, "Send message failed"),
     UNREACHABLE_NODE(1004, "Unreachable node"),
-    UNKNOWN_EXEPTION(1005, "unknow excption"),
+    UNKNOWN_EXEPTION(1005, "unknow exception: {}, {}"),
     TIMEOUT(1006, "timeout"),
     SEND_MESSAGE_LIMIT(1007, "Send limit"),
 
     PARAMETER_ERROR(2001, "parameter error: {}"),
-    AUTH_ERROR(2002, "auth error"),
-    AUTH_CODE_ERROR(2004, "code error");//验证码错误
+    AUTH_ERROR(2002, "auth error");
 
     private RpcErrorCode(int code, String msg) {
         this.code = code;

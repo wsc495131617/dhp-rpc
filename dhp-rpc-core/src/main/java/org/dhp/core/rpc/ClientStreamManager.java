@@ -2,9 +2,11 @@ package org.dhp.core.rpc;
 
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
+import org.dhp.common.utils.JacksonUtil;
 import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.spring.FrameworkException;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,13 +22,13 @@ public class ClientStreamManager {
     
     public Throwable dealThrowable(Message message) {
         RpcFailedResponse failedResponse = ProtostuffUtils.deserialize(message.getData(), RpcFailedResponse.class);
-        log.warn("throwable: {},{}", failedResponse.getClsName(), failedResponse.getMessage());
         if (RpcException.class.getName().equalsIgnoreCase(failedResponse.getClsName())) {
-            return new RpcException(RpcErrorCode.valueOf(failedResponse.getMessage()));
+            List<String> list = JacksonUtil.json2Bean(failedResponse.getMessage(), List.class);
+            return new RpcException(RpcErrorCode.valueOf(list.remove(0)));
+        } else {
+            log.warn("throwable: {},{}", failedResponse.getClsName(), failedResponse.getMessage());
+            return failedResponse.unpackThrowable();
         }
-        if(log.isDebugEnabled())
-            log.debug("content: {}", failedResponse.getContent());
-        return new UnknowFailedException(failedResponse.getClsName(), failedResponse.getMessage(), failedResponse.getContent()).getCause();
     }
     
     /**

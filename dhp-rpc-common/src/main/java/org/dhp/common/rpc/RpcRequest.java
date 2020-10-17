@@ -1,11 +1,9 @@
 package org.dhp.common.rpc;
 
-import lombok.Data;
-
 /**
  * 基础请求
  */
-@Data
-public class RpcRequest<H extends RpcHeader> {
-    H header;
+public abstract class RpcRequest<H extends RpcHeader> {
+    public abstract void setHeader(H header);
+    public abstract H getHeader();
 }

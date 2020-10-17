@@ -15,7 +15,7 @@ import java.util.Date;
  * @email  chzcb2008@gmail.com
  *
  */
-public class IDGenerator {
+public class IDGenerator extends AbstractIDGenerator{
 	
 	static Logger logger = LoggerFactory.getLogger(IDGenerator.class);
 	

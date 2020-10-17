@@ -14,12 +14,15 @@ public class MethodDispatchUtils {
     public static byte[] dealFailed(ServerCommand command, Throwable e) {
         String throwableClassName = e.getClass().getName();
         String throwableMessage = e.getMessage();
-        String throwableContent = JacksonUtil.bean2Json(e);
         RpcFailedResponse response = new RpcFailedResponse();
         response.setClsName(throwableClassName);
-        response.setMessage(throwableMessage);
-        response.setContent(throwableContent);
-        return ProtostuffUtils.serialize(RpcFailedResponse.class, response);
+        if(e instanceof RpcException) {
+            response.setMessage(JacksonUtil.bean2Json(((RpcException) e).getResponse()));
+        } else {
+            response.setMessage(throwableMessage);
+        }
+        response.packThrowable(e);
+        return ProtostuffUtils.serialize(response);
     }
 
     public static byte[] dealResult(ServerCommand command, Object result) {
