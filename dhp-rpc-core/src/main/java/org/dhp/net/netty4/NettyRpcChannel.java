@@ -123,38 +123,6 @@ public class NettyRpcChannel extends RpcChannel {
     }
 
     @Override
-    public void ping() {
-        //5秒不活跃就发起心跳，如果一直有通讯，就不用发
-        if(System.currentTimeMillis()-activeTime>=15000) {
-            return;
-        }
-        Stream<NettyMessage> stream = new Stream<NettyMessage>() {
-            @Override
-            public void onCanceled() {
-            }
-
-            @Override
-            public void onNext(NettyMessage value) {
-                activeTime = System.currentTimeMillis();
-                setActive(true);
-                if(log.isDebugEnabled()) {
-                    log.debug("pong " + new String(value.getData()));
-                }
-            }
-
-            @Override
-            public void onFailed(Throwable throwable) {
-            }
-
-            @Override
-            public void onCompleted() {
-            }
-        };
-        NettyMessage message = sendMessage("ping", (System.currentTimeMillis() + "").getBytes());
-        streamManager.setStream(message, stream);
-    }
-
-    @Override
     public Integer write(String name, byte[] argBody, Stream<Message> messageStream) {
         NettyMessage message = sendMessage(name, argBody);
         streamManager.setStream(message, messageStream);

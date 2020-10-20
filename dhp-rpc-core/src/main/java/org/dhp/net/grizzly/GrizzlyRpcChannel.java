@@ -51,7 +51,7 @@ public class GrizzlyRpcChannel extends RpcChannel {
                 public NextAction handleRead(FilterChainContext ctx) throws IOException {
                     GrizzlyMessage message = ctx.getMessage();
                     if(log.isDebugEnabled()) {
-                        log.debug("recv: {}", message);
+                        log.debug("{}, recv: {}", getId(), message);
                     }
                     //update active time
                     activeTime = System.currentTimeMillis();
@@ -143,38 +143,7 @@ public class GrizzlyRpcChannel extends RpcChannel {
                     }
                 }
             }
-            active = false;
         }
-    }
-
-    @Override
-    public void ping() {
-        //检查activeTime是否已经超过1分钟了，不然就不管是否出发close时间，直接设置为不可用
-        if(System.currentTimeMillis()-activeTime>60000) {
-            active = false;
-            return;
-        }
-        GrizzlyMessage message = sendMessage("ping", (System.currentTimeMillis()+"").getBytes());
-        Stream<GrizzlyMessage> stream = new Stream<GrizzlyMessage>() {
-            @Override
-            public void onCanceled() {
-            }
-            @Override
-            public void onNext(GrizzlyMessage value) {
-                activeTime = System.currentTimeMillis();
-                setActive(true);
-                if(log.isDebugEnabled()) {
-                    log.debug("pong " + new String(value.getData()));
-                }
-            }
-            @Override
-            public void onFailed(Throwable throwable) {
-            }
-            @Override
-            public void onCompleted() {
-            }
-        };
-        streamManager.setStream(message, stream);
     }
 
     @Override

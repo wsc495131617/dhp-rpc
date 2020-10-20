@@ -71,7 +71,35 @@ public abstract class RpcChannel {
     /**
      * ping channel with connected
      */
-    public abstract void ping();
+    public void ping() {
+        Long ts = System.currentTimeMillis();
+        byte[] idBytes = ProtostuffUtils.serialize(Long.class, ts);
+        FutureImpl<Message> mfuture = new FutureImpl<>();
+        Stream<Message> stream = new SimpleStream<Message>() {
+            @Override
+            public void onNext(Message value) {
+                mfuture.result(value);
+            }
+        };
+        mfuture.addStream(stream);
+        write("ping", idBytes, stream);
+        Message resp = null;
+        try {
+            resp = mfuture.get(3, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            log.warn("Ping Failed by InterruptedException: "+getHost()+":"+getPort()+" "+e.getMessage(), e);
+        } catch (ExecutionException e) {
+            log.warn("Ping Failed by ExecutionException: "+getHost()+":"+getPort()+" "+e.getMessage(), e);
+        } catch (TimeoutException e) {
+            log.warn("Ping Failed by TimeoutException: "+getHost()+":"+getPort()+" "+e.getMessage(), e);
+        }
+        if (resp != null && resp.getStatus() == MessageStatus.Completed) {
+            this.active = true;
+            this.activeTime = ts;
+        } else {
+            this.active = false;
+        }
+    }
 
     /**
      * is close(different from active)

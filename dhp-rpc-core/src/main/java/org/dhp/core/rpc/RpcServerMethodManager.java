@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Server method manager, store all method
+ * Server method org.chzcb.strategy.manager, store all method
  * @author zhangcb
  */
 @Slf4j
