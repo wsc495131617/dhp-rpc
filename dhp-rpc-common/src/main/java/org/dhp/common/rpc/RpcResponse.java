@@ -13,11 +13,13 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class RpcResponse {
+public class RpcResponse implements IRpcResponse{
 
     @JsonIgnoreProperties
     //uuid 用于幂等
     Long uuid;
-    int code;
+
+
+    int code = 200;
     String message;
 }

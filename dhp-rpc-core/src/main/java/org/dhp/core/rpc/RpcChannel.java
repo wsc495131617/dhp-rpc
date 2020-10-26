@@ -72,6 +72,15 @@ public abstract class RpcChannel {
      * ping channel with connected
      */
     public void ping() {
+        //如果连接应不活跃，那么ping就没必要了，需要重新连接
+        if(this.active == false) {
+            try {
+                this.connect();
+            } catch (TimeoutException e) {
+                log.info("reconnect failed");
+            }
+            return;
+        }
         Long ts = System.currentTimeMillis();
         byte[] idBytes = ProtostuffUtils.serialize(Long.class, ts);
         FutureImpl<Message> mfuture = new FutureImpl<>();
