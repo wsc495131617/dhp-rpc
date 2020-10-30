@@ -18,9 +18,6 @@
 
 ```
 
-
-```
-
 ### application.yml 的配置
 
 ```yaml
@@ -33,6 +30,37 @@ dhp:
     port: 6002
 ```
 
-                               
+                          
+                          
+# dhp-distribution
+## ZookeeperUtils
+```yaml
+#依赖配置
+zookeeper:
+  connectUrl: ""
+```     
+手工加Bean
+```java
+//...
+@Bean
+public ZookeeperUtils zookeeperUtils() {
+    return new ZookeeperUtils();
+}
+```
+
+```java
+@ZKLocked
+//依赖注解，直接可以对Bean的某个方法进行分布式锁
+
+//也可以手工
+ZookeeperLock lock = zookeeperUtils.createLock(methodName.replace(".","_"));
+try {
+    lock.lock();
+    //do somethings
+} finally {
+    lock.unlock();
+}
+
+```
 
  
