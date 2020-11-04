@@ -6,10 +6,7 @@ import org.dhp.core.rpc.RpcChannelPool;
 import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.beans.factory.support.BeanDefinitionBuilder;
-import org.springframework.beans.factory.support.BeanDefinitionRegistry;
-import org.springframework.beans.factory.support.BeanNameGenerator;
-import org.springframework.beans.factory.support.RootBeanDefinition;
+import org.springframework.beans.factory.support.*;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
@@ -88,10 +85,10 @@ public class DhpClientRegister implements ImportBeanDefinitionRegistrar,
 
                         BeanDefinition rbd = BeanDefinitionBuilder.genericBeanDefinition(ClientProxyFactoryBean.class)
                                 .addPropertyValue("className", compDefinition.getBeanClassName())
-                                .setRole(RootBeanDefinition.ROLE_INFRASTRUCTURE)
+                                .setAutowireMode(GenericBeanDefinition.AUTOWIRE_BY_TYPE)
                                 .getBeanDefinition();
                         log.info("add dhp-proxy: {}", cls.getName());
-                        registry.registerBeanDefinition(cls.getName(), rbd);
+                        registry.registerBeanDefinition("dhp-"+cls.getName(), rbd);
                     } else {
                         log.debug("skip component definition: {}", compDefinition);
                     }

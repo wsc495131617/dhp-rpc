@@ -1,16 +1,16 @@
 package org.dhp.core.spring;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.aop.framework.ProxyFactoryBean;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.cglib.proxy.Proxy;
+
+import java.lang.reflect.Proxy;
 
 @Slf4j
-public class ClientProxyFactoryBean implements FactoryBean<Object>, InitializingBean, BeanFactoryAware {
+public class ClientProxyFactoryBean<T> implements FactoryBean<T>, InitializingBean, BeanFactoryAware {
 
     String className;
 
@@ -20,14 +20,10 @@ public class ClientProxyFactoryBean implements FactoryBean<Object>, Initializing
 
     Class classType;
 
-    Object proxy;
-
-    String getBean() {
-        return "dhp-" + className;
-    }
+    T proxy;
 
     @Override
-    public Object getObject() throws Exception {
+    public T getObject() throws Exception {
         return proxy;
     }
 
@@ -47,15 +43,13 @@ public class ClientProxyFactoryBean implements FactoryBean<Object>, Initializing
         this.proxy = createBean();
     }
 
-    private Object createBean() {
+    private T createBean() {
         IClientInvokeHandler invocationHandler = beanFactory.getBean(IClientInvokeHandler.class);
-        Object proxy = Proxy.newProxyInstance(invocationHandler.getClass().getClassLoader(), new Class<?>[]{classType}, invocationHandler);
+        T proxy = (T) Proxy.newProxyInstance(invocationHandler.getClass().getClassLoader(), new Class<?>[]{classType}, invocationHandler);
         return proxy;
     }
 
     BeanFactory beanFactory;
-
-    ProxyFactoryBean proxyFactoryBean;
 
     @Override
     public void setBeanFactory(BeanFactory beanFactory) throws BeansException {

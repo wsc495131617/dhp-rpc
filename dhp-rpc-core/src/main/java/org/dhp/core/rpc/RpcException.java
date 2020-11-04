@@ -40,6 +40,7 @@ public class RpcException extends RuntimeException {
         return list;
     }
 
+
     public String getMessage() {
         return StringFormatter.arrayFormat(code.getMessage(), params);
     }

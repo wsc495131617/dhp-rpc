@@ -4,12 +4,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
-import org.dhp.common.rpc.StreamFuture;
 import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.rpc.*;
-
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Type;
 
 /**
  * @author zhangcb
@@ -76,70 +72,8 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
                 ctx.channel().write(retMessage);
             }
         } else {
-            Type[] paramTypes = command.getMethod().getParameterTypes();
             Stream stream = new NettyStream(session.getId(), command, message);
-            if (command.getType() == MethodType.Stream) {// call(req, stream<resp>)
-                Object[] params;
-                if (Stream.class.isAssignableFrom((Class<?>) paramTypes[0])) {
-                    params = new Object[]{stream, ProtostuffUtils.deserialize(message.getData(), (Class<?>) paramTypes[1])};
-                } else {
-                    params = new Object[]{ProtostuffUtils.deserialize(message.getData(), (Class<?>) paramTypes[0]), stream};
-                }
-                try {
-                    command.getMethod().invoke(command.getBean(), params);
-                } catch (RuntimeException e) {
-                    log.error(e.getMessage(), e);
-                } catch (IllegalAccessException e) {
-                } catch (InvocationTargetException e) {
-                    Throwable cause = e.getCause();
-                    log.error(cause.getMessage(), cause);
-                }
-            } else {
-                Object param = ProtostuffUtils.deserialize(message.getData(), (Class<?>) paramTypes[0]);
-                Object result = null;
-                Throwable throwable = null;
-                try {
-                    result = command.getMethod().invoke(command.getBean(), new Object[]{param});
-                } catch (RuntimeException e) {
-                    log.error(e.getMessage(), e);
-                    throwable = e;
-                } catch (IllegalAccessException e) {
-                    throwable = e;
-                } catch (InvocationTargetException e) {
-                    Throwable cause = e.getCause();
-                    log.error(cause.getMessage(), cause);
-                    throwable = cause;
-                }
-
-                NettyMessage retMessage = new NettyMessage();
-                if (command.getType() == MethodType.Default || command.getType() == MethodType.List) {// resp call(req)
-                    retMessage.setId(message.getId());
-                    if (throwable != null) {
-                        retMessage.setStatus(MessageStatus.Failed);
-                        retMessage.setData(MethodDispatchUtils.dealFailed(command, throwable));
-                    } else {
-                        retMessage.setStatus(MessageStatus.Completed);
-                        retMessage.setData(MethodDispatchUtils.dealResult(command, result));
-                    }
-                    retMessage.setMetadata(message.getMetadata());
-                    retMessage.setCommand(command.getName());
-                    ctx.channel().writeAndFlush(retMessage);
-                } else if (command.getType() == MethodType.Future) {// future<resp> call(req)
-                    if (result == null) {
-                        retMessage.setId(message.getId());
-                        retMessage.setStatus(MessageStatus.Completed);
-                        retMessage.setMetadata(message.getMetadata());
-                        retMessage.setCommand(command.getName());
-                        ctx.channel().writeAndFlush(retMessage);
-                    } else {
-                        StreamFuture<Object> future = (StreamFuture) result;
-                        future.addStream(stream);
-                        //加入到session管理里面，当session销毁，异步future就需要被cancel
-                        session.addFuture(future);
-
-                    }
-                }
-            }
+            Workers.getExecutorService(message).execute(command, stream, message, session);
         }
         ctx.fireChannelReadComplete();
     }

@@ -11,4 +11,5 @@ public class Node {
     int port;
     String host;
     long timeout;
+    int channelSize = 4;
 }
