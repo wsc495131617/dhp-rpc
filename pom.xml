@@ -11,7 +11,6 @@
         <module>dhp-rpc-core</module>
         <module>dhp-rpc-common</module>
         <module>dhp-rpc-monitor</module>
-        <module>dhp-cache</module>
         <module>dhp-distribution</module>
     </modules>
     <packaging>pom</packaging>

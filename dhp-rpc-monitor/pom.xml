@@ -20,7 +20,7 @@
         <dependency>
             <groupId>org.chzcb</groupId>
             <artifactId>dhp-rpc-core</artifactId>
-            <version>${parent.version}</version>
+            <version>1.0.1-SNAPSHOT</version>
         </dependency>
     </dependencies>
 
