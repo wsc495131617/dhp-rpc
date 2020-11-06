@@ -9,8 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
 import org.dhp.core.rpc.*;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 /**
  * @author zhangcb
  */
@@ -20,8 +18,6 @@ public class NettyRpcChannel extends RpcChannel {
     Bootstrap b;
 
     EventLoopGroup group;
-
-    AtomicInteger _ID = new AtomicInteger();
 
     Channel channel;
 

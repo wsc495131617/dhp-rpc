@@ -1,10 +1,8 @@
 package org.dhp.net.nio;
 
 import lombok.extern.slf4j.Slf4j;
-import org.dhp.core.rpc.MessageStatus;
 import org.dhp.core.rpc.Session;
 import org.dhp.core.rpc.SessionManager;
-import org.dhp.net.netty4.NettyMessageBuilder;
 
 import java.nio.channels.SocketChannel;
 import java.util.Map;
@@ -35,11 +33,6 @@ public class NioSessionManager extends SessionManager {
             session = old;
         }
         log.info("create session {}", session);
-        //发送一条还原消息
-        session.write(new NettyMessageBuilder()
-                .setCommand("registered")
-                .setStatus(MessageStatus.Completed)
-                .setData((System.currentTimeMillis() + "").getBytes()).build());
         return session;
     }
 

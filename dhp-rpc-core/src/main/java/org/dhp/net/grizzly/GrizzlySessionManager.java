@@ -36,7 +36,7 @@ public class GrizzlySessionManager extends SessionManager {
         GrizzlySession session = allSessions.remove(connection);
         if(session != null){
             this.destroy(session);
-            session.destory();
+            session.destroy();
         }
     }
     

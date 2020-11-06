@@ -7,6 +7,7 @@ import org.dhp.core.rpc.IRpcServer;
 import org.dhp.core.rpc.RpcServerMethodManager;
 import org.dhp.net.grizzly.GrizzlyRpcServer;
 import org.dhp.net.netty4.NettyRpcServer;
+import org.dhp.net.nio.NioRpcSocketServer;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.*;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -49,6 +50,8 @@ public class DhpServerRegister implements BeanPostProcessor, ResourceLoaderAware
         if (server == null) {
             if (dhpProperties.type == ChannelType.Netty) {
                 server = new NettyRpcServer(dhpProperties.port, dhpProperties.getWorkThread());
+            } else if(dhpProperties.type == ChannelType.NIO){
+                server = new NioRpcSocketServer(dhpProperties.getPort(),dhpProperties.getWorkThread(), methodManager);
             } else {
                 server = new GrizzlyRpcServer(dhpProperties.port, dhpProperties.getWorkThread());
             }

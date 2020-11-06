@@ -78,7 +78,7 @@ public class RpcExecutorService implements Runnable {
                         //如果100ms处理不了
                         && st + cost - lastWaking > 1000000 * 100
                 ) {
-                    log.info("处理：{}, 队列剩余：{}, 平均：{}ms， 当前：{}ms, {}", message.getCommand(), size, costAvg / 1000000, cost / 1000000, session);
+                    log.warn("处理：{}, 队列剩余：{}, 平均：{}ms， 当前：{}ms, {}", message.getCommand(), size, costAvg / 1000000, cost / 1000000, session);
                     lastWaking = System.nanoTime();
                 }
             } catch (Exception e) {

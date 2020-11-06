@@ -8,6 +8,7 @@ import org.dhp.common.utils.ProtostuffUtils;
 
 import java.util.Set;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Rpc 通道，用于发送信息
@@ -27,6 +28,8 @@ public abstract class RpcChannel {
     Long id;
     protected long activeTime = System.currentTimeMillis();
     protected boolean active;
+
+    protected static AtomicInteger _ID = new AtomicInteger(1);
     
     //等待关闭的连接，有可能是网络延迟，或者服务端准备关闭的
     protected Set<Object> readyToCloseConns = ConcurrentHashMap.newKeySet();

@@ -89,7 +89,7 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
             if (channel.isActive()) {
                 return channel;
             } else {
-                channels[index] = null;
+                channels[index % len] = null;
                 //当前channel丢入准备关闭的channels列表里面
                 readyToCloseChannels.add(channel);
             }
@@ -111,8 +111,8 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
                 try {
                     //ping所有的连接
                     allChannels.values().stream().forEach(rpcChannels -> {
-                        for(RpcChannel channel : rpcChannels) {
-                            if(channel != null) {
+                        for (RpcChannel channel : rpcChannels) {
+                            if (channel != null) {
                                 channel.ping();
                             }
                         }

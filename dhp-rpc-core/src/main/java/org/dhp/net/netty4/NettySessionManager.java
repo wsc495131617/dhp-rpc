@@ -33,11 +33,6 @@ public class NettySessionManager extends SessionManager {
             session = old;
         }
         log.info("create session {}", connection);
-        //发送一条还原消息
-        session.write(new NettyMessageBuilder()
-                .setCommand("registered")
-                .setStatus(MessageStatus.Completed)
-                .setData((System.currentTimeMillis() + "").getBytes()).build());
         return session;
     }
 
@@ -45,7 +40,7 @@ public class NettySessionManager extends SessionManager {
     public void destorySession(Object connection) {
         NettySession session = allSessions.remove(connection);
         if (session != null) {
-            session.destory();
+            session.destroy();
         }
     }
 

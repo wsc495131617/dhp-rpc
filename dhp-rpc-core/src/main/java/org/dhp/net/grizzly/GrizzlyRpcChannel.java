@@ -15,7 +15,6 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author zhangcb
@@ -27,8 +26,6 @@ public class GrizzlyRpcChannel extends RpcChannel {
 
     TCPNIOConnection connection;
 
-    AtomicInteger _ID = new AtomicInteger();
-    
     static ClientStreamManager streamManager = new ClientStreamManager();
     
     @Override

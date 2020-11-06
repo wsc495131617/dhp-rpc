@@ -6,17 +6,34 @@
  ## dhp-rpc-core
  核心框架
  
- ## 客户端使用
+ ### 客户端使用
  
  ```java
 @DhpRpcClientScanner(basePackages="org.dhp.examples.rpcdemo")
 ```
 
-## 服务端使用
+### 服务端使用
 ```java
 @DhpRpcClientScanner(basePackages="org.dhp.examples.rpcdemo")
 
 ```
+
+### 底层网络通信模式
+1. Grizzly
+   - 作为微服务内部通讯相对可控的框架，性能一般配置下币Netty要好
+2. Netty
+   - 需要做优化
+3. NIO
+   - 简单通过单Selector实现，内网通讯足够用了
+### 底层线程模型
+1. 网络通信层
+   - 负责消息包的接受和发送
+   - 负责断开重连，心跳机制等
+2. 线程执行调度层
+   - 负责调度所有业务功能
+   - 弹性智能调度模型，检测耗时较大的功能，单独开辟慢处理线程来处理，不影响其他正常业务
+   - 单独慢处理线程一个功能号只有一个，性能问题通过多实例解决
+
 
 ### application.yml 的配置
 

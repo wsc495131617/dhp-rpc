@@ -38,7 +38,7 @@ public abstract class Session {
         futures.add(future);
     }
     
-    public void destory(){
+    public void destroy(){
         streams.stream().forEach(stream -> {
             stream.onCanceled();
         });
