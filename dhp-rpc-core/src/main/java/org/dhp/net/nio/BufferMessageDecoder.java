@@ -12,7 +12,7 @@ import java.util.List;
 @Slf4j
 public class BufferMessageDecoder extends MessageDecoder {
 
-    MemoryManager memoryManager = new PooledMemoryManager();
+    static MemoryManager memoryManager = new PooledMemoryManager();
 
     public BufferMessageDecoder(int bufferSize) {
         super(bufferSize);
@@ -54,7 +54,7 @@ public class BufferMessageDecoder extends MessageDecoder {
                         buffer.position(0);
                     }
                 } else {
-                    msgBuf.put(buffer, position, remaining);
+                    msgBuf.put(buffer, position, limit - position);
                     //buffer全部写完
                     buffer.position(0);
                     position = 0;

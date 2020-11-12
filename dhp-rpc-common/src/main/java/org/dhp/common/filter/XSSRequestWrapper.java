@@ -2,7 +2,6 @@ package org.dhp.common.filter;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.tomcat.util.http.fileupload.servlet.ServletFileUpload;
 import org.springframework.util.StreamUtils;
 
 import javax.servlet.ReadListener;
@@ -41,7 +40,6 @@ public class XSSRequestWrapper extends HttpServletRequestWrapper {
     @Override
     public String[] getParameterValues(String parameter) {
         String[] values = super.getParameterValues(parameter);
-
         if (values == null) {
             return null;
         }
@@ -72,30 +70,27 @@ public class XSSRequestWrapper extends HttpServletRequestWrapper {
 
     @Override
     public ServletInputStream getInputStream() throws IOException {
-        //GET 请求不做xss处理
-        if (!ServletFileUpload.isMultipartContent(request)) {
-            //POST内容有数据
-            if (request.getInputStream().available() > 0) {
-                String str = StreamUtils.copyToString(request.getInputStream(), Charset.defaultCharset());
-                str = stripXSSAttack(str);
-                ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(str.getBytes());
-                return new ServletInputStream() {
-                    public boolean isFinished() {
-                        return byteArrayInputStream.available() == 0;
-                    }
+        //POST内容有数据
+        if (request.getInputStream().available() > 0) {
+            String str = StreamUtils.copyToString(request.getInputStream(), Charset.defaultCharset());
+            str = stripXSSAttack(str);
+            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(str.getBytes());
+            return new ServletInputStream() {
+                public boolean isFinished() {
+                    return byteArrayInputStream.available() == 0;
+                }
 
-                    public boolean isReady() {
-                        return true;
-                    }
+                public boolean isReady() {
+                    return true;
+                }
 
-                    public void setReadListener(ReadListener readListener) {
-                    }
+                public void setReadListener(ReadListener readListener) {
+                }
 
-                    public int read() {
-                        return byteArrayInputStream.read();
-                    }
-                };
-            }
+                public int read() {
+                    return byteArrayInputStream.read();
+                }
+            };
         }
         return super.getInputStream();
     }

@@ -4,7 +4,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.rpc.*;
-import org.dhp.net.netty4.NettyMessage;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -107,7 +106,6 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
     }
 
     protected void dealMessage(NioSession session, NioMessage message) {
-        log.info("dealMessage: {}", message);
         if(!session.isRegister()) {
             if (message.getCommand().equalsIgnoreCase("register")) {
                 session.setId(ProtostuffUtils.deserialize(message.getData(), Long.class));
@@ -132,7 +130,7 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
                 retMessage.setData((System.currentTimeMillis()+"").getBytes());
                 session.write(retMessage);
             } else {
-                NettyMessage retMessage = new NettyMessage();
+                NioMessage retMessage = new NioMessage();
                 retMessage.setId(message.getId());
                 retMessage.setStatus(MessageStatus.Failed);
                 retMessage.setCommand(message.getCommand());

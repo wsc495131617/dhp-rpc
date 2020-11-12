@@ -13,17 +13,16 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 @Slf4j
 public class NioRpcChannel extends RpcChannel {
 
     SocketChannel socketChannel;
 
-    static Selector selector;
-
     ClientStreamManager streamManager;
+
+    static Selector selector;
 
     static synchronized Selector getSelector() {
         if (selector == null) {
@@ -32,18 +31,15 @@ public class NioRpcChannel extends RpcChannel {
                 Thread thread = new Thread(() -> {
                     while (true) {
                         try {
-                            selector.select();
+                            selector.select(1000);
                             Iterator<SelectionKey> it = selector.selectedKeys().iterator();
                             while (it.hasNext()) {
                                 SelectionKey key = it.next();
                                 it.remove();
                                 dealSelectionKey(key);
                             }
-                        } catch (IOException e) {
-                            try {
-                                Thread.sleep(1000);
-                            } catch (InterruptedException interruptedException) {
-                            }
+                        } catch (Exception e) {
+                            log.error(e.getMessage(), e);
                         }
                     }
                 });
@@ -63,7 +59,9 @@ public class NioRpcChannel extends RpcChannel {
             SocketChannel socket = (SocketChannel) key.channel();
             //socket 读取 bytes到session里面
             NioRpcChannel channel = channelMap.get(socket);
-            channel.readMessage();
+            if(!channel.readMessage()){
+                channelMap.remove(socket);
+            }
         }
     }
 
@@ -74,6 +72,7 @@ public class NioRpcChannel extends RpcChannel {
     public void start() {
         try {
             messageDecoder = new BufferMessageDecoder(256);
+            streamManager = new ClientStreamManager();
             connect();
         } catch (TimeoutException e) {
         }
@@ -85,6 +84,7 @@ public class NioRpcChannel extends RpcChannel {
             //关闭了
             this.active = false;
             readyToCloseConns.remove(socketChannel);
+            this.socketChannel = null;
             return false;
         }
         messages.forEach(message -> {
@@ -108,15 +108,14 @@ public class NioRpcChannel extends RpcChannel {
     public boolean connect() throws TimeoutException {
         try {
             if (socketChannel == null || !socketChannel.isConnected()) {
-                socketChannel = SocketChannel.open();
+                socketChannel = SocketChannel.open(new InetSocketAddress(this.getHost(), this.getPort()));
                 socketChannel.configureBlocking(false);
-                socketChannel.register(getSelector(), SelectionKey.OP_CONNECT);
-                //连接
-                socketChannel.connect(new InetSocketAddress(this.getHost(), this.getPort()));
+                socketChannel.register(getSelector(), SelectionKey.OP_READ);
                 channelMap.put(socketChannel, this);
             }
             return register();
         } catch (IOException e) {
+            log.error("connet error"+e.getMessage(), e);
             return false;
         }
     }

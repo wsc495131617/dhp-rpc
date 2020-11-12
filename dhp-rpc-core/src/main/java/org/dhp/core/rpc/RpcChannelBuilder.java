@@ -2,6 +2,7 @@ package org.dhp.core.rpc;
 
 import org.dhp.net.grizzly.GrizzlyRpcChannel;
 import org.dhp.net.netty4.NettyRpcChannel;
+import org.dhp.net.nio.NioRpcChannel;
 
 /**
  * @author zhangcb
@@ -44,6 +45,8 @@ public class RpcChannelBuilder {
         RpcChannel channel;
         if (this.type == ChannelType.Grizzly) {
             channel = new GrizzlyRpcChannel();
+        } else if(this.type == ChannelType.NIO) {
+            channel = new NioRpcChannel();
         } else {
             channel = new NettyRpcChannel();
         }
