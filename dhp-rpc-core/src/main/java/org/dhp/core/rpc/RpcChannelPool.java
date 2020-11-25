@@ -132,6 +132,11 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
                     Thread.sleep(15000);
                 } catch (Throwable e) {
                     log.error(e.getMessage(), e);
+                    //异常之后3秒重试
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException interruptedException) {
+                    }
                 }
             }
         });

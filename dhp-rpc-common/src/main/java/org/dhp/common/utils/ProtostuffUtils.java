@@ -1,6 +1,5 @@
 package org.dhp.common.utils;
 
-import io.protostuff.LinkBuffer;
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtostuffIOUtil;
 import io.protostuff.Schema;
@@ -11,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -76,13 +74,13 @@ public class ProtostuffUtils {
         }
         RuntimeSchema<T> schema;
         T newInstance;
-        try {
+//        try {
             schema = RuntimeSchema.createFrom(typeClass);
             newInstance = schema.newMessage();
             ProtostuffIOUtil.mergeFrom(source, newInstance, schema);
-        } catch (Exception e) {
-            throw new RuntimeException("deserialize exception");
-        }
+//        } catch (Exception e) {
+//            throw new RuntimeException("deserialize exception");
+//        }
 
         return newInstance;
     }

@@ -45,10 +45,10 @@ public class RpcExecutor {
                 log.error(cause.getMessage(), cause);
             }
         } else {
-            Object param = ProtostuffUtils.deserialize(message.getData(), (Class<?>) paramTypes[0]);
             Object result = null;
             Throwable throwable = null;
             try {
+                Object param = ProtostuffUtils.deserialize(message.getData(), (Class<?>) paramTypes[0]);
                 result = command.getMethod().invoke(command.getBean(), new Object[]{param});
             } catch (RuntimeException e) {
                 log.error(e.getMessage(), e);
