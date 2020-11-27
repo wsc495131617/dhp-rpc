@@ -25,7 +25,7 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
     NioSessionManager sessionManager;
     RpcServerMethodManager methodManager;
 
-    public NioRpcSocketServer(int port, int workThread,RpcServerMethodManager methodManager) {
+    public NioRpcSocketServer(int port, int workThread, RpcServerMethodManager methodManager) {
         this.port = port;
         this.workThread = workThread;
         this.sessionManager = new NioSessionManager();
@@ -65,7 +65,7 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
                     }
                     if (key.isReadable()) {
                         SocketChannel socket = (SocketChannel) key.channel();
-                        if(!readChannel(socket)){
+                        if (!readChannel(socket)) {
                             key.cancel();
                             continue;
                         }
@@ -81,21 +81,21 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
     }
 
     protected void addChannel(SocketChannel socketChannel) {
-        NioSession session = (NioSession)sessionManager.getSession(socketChannel);
+        NioSession session = (NioSession) sessionManager.getSession(socketChannel);
         session.setMessageDecoder(new BufferMessageDecoder(256));
     }
 
     //读取连接数据
     protected boolean readChannel(SocketChannel socket) {
         try {
-            NioSession session = (NioSession)sessionManager.getSession(socket);
+            NioSession session = (NioSession) sessionManager.getSession(socket);
             //socket 读取 bytes到session里面
             List<NioMessage> messages = new LinkedList<>();
-            if(!session.getMessageDecoder().read(socket, messages)){
+            if (!session.getMessageDecoder().read(socket, messages)) {
                 session.destroy();
                 return false;
             }
-            for(NioMessage message : messages) {
+            for (NioMessage message : messages) {
                 dealMessage(session, message);
             }
         } catch (Throwable e) {
@@ -106,7 +106,7 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
     }
 
     protected void dealMessage(NioSession session, NioMessage message) {
-        if(!session.isRegister()) {
+        if (!session.isRegister()) {
             if (message.getCommand().equalsIgnoreCase("register")) {
                 session.setId(ProtostuffUtils.deserialize(message.getData(), Long.class));
                 if (sessionManager.register(session)) {
@@ -121,26 +121,8 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
             return;
         }
         ServerCommand command = methodManager.getCommand(message.getCommand());
-        if(command == null) {
-            if(message.getCommand().equalsIgnoreCase("ping")){
-                NioMessage retMessage = new NioMessage();
-                retMessage.setId(message.getId());
-                retMessage.setStatus(MessageStatus.Completed);
-                retMessage.setCommand(message.getCommand());
-                retMessage.setData((System.currentTimeMillis()+"").getBytes());
-                session.write(retMessage);
-            } else {
-                NioMessage retMessage = new NioMessage();
-                retMessage.setId(message.getId());
-                retMessage.setStatus(MessageStatus.Failed);
-                retMessage.setCommand(message.getCommand());
-                retMessage.setData("no command".getBytes());
-                session.write(retMessage);
-            }
-        } else {
-            Stream stream = new NioStream(session.getId(), command, message);
-            Workers.getExecutorService(message).execute(command, stream, message, session);
-        }
+        Stream stream = new NioStream(session.getId(), command, message);
+        Workers.getExecutorService(message).execute(command, stream, message, session);
     }
 
     @Override
@@ -159,7 +141,7 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
         ServerCommand command;
         Message message;
 
-        public NioStream(Long sessionId, ServerCommand command, Message message){
+        public NioStream(Long sessionId, ServerCommand command, Message message) {
             this.sessionId = sessionId;
             this.command = command;
             this.message = message;

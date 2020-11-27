@@ -24,6 +24,18 @@ public class RpcExecutor {
     }
 
     public void execute() {
+        if(command == null) {
+            if (message.getCommand().equalsIgnoreCase("ping")) {
+                message.setStatus(MessageStatus.Completed);
+                message.setData((System.currentTimeMillis() + "").getBytes());
+            } else {
+                message.setId(message.getId());
+                message.setStatus(MessageStatus.Failed);
+                message.setData("no command".getBytes());
+            }
+            session.write(message);
+            return;
+        }
         Type[] paramTypes = command.getMethod().getParameterTypes();
         if (command.getType() == MethodType.Stream) {// call(req, stream<resp>)
             Object[] params;

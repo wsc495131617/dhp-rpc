@@ -14,14 +14,14 @@ import org.dhp.core.rpc.*;
 public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
 
     RpcServerMethodManager methodManager;
-    
+
     SessionManager sessionManager;
 
     public MethodDispatchHandler(RpcServerMethodManager methodManager, SessionManager sessionManager) {
         this.methodManager = methodManager;
         this.sessionManager = sessionManager;
     }
-    
+
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
         sessionManager.destorySession(ctx.channel());
@@ -37,10 +37,10 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
         NettyMessage message = (NettyMessage) msg;
         Session session = sessionManager.getSession(ctx.channel());
         //等待注册
-        if(!session.isRegister()){
-            if(message.getCommand().equalsIgnoreCase("register")){
+        if (!session.isRegister()) {
+            if (message.getCommand().equalsIgnoreCase("register")) {
                 session.setId(ProtostuffUtils.deserialize(message.getData(), Long.class));
-                if(sessionManager.register(session)){
+                if (sessionManager.register(session)) {
                     message.setStatus(MessageStatus.Completed);
                 } else {
                     message.setStatus(MessageStatus.Failed);
@@ -53,28 +53,10 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
             ctx.fireChannelReadComplete();
             return;
         }
-        
+
         ServerCommand command = methodManager.getCommand(message.getCommand());
-        if(command == null) {
-            if(message.getCommand().equalsIgnoreCase("ping")){
-                NettyMessage retMessage = new NettyMessage();
-                retMessage.setId(message.getId());
-                retMessage.setStatus(MessageStatus.Completed);
-                retMessage.setCommand(message.getCommand());
-                retMessage.setData((System.currentTimeMillis()+"").getBytes());
-                ctx.channel().write(retMessage);
-            } else {
-                NettyMessage retMessage = new NettyMessage();
-                retMessage.setId(message.getId());
-                retMessage.setStatus(MessageStatus.Failed);
-                retMessage.setCommand(message.getCommand());
-                retMessage.setData("no command".getBytes());
-                ctx.channel().write(retMessage);
-            }
-        } else {
-            Stream stream = new NettyStream(session.getId(), command, message);
-            Workers.getExecutorService(message).execute(command, stream, message, session);
-        }
+        Stream stream = new NettyStream(session.getId(), command, message);
+        Workers.getExecutorService(message).execute(command, stream, message, session);
         ctx.fireChannelReadComplete();
     }
 
@@ -84,7 +66,7 @@ public class MethodDispatchHandler extends ChannelInboundHandlerAdapter {
         ServerCommand command;
         Message message;
 
-        public NettyStream(Long sessionId, ServerCommand command, Message message){
+        public NettyStream(Long sessionId, ServerCommand command, Message message) {
             this.sessionId = sessionId;
             this.command = command;
             this.message = message;

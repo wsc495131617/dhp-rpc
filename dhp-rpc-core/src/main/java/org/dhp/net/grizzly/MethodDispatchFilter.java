@@ -58,32 +58,11 @@ public class MethodDispatchFilter extends BaseFilter {
             return ctx.getStopAction();
         }
         ServerCommand command = methodManager.getCommand(message.getCommand());
-        if (command == null) {
-            if (message.getCommand().equalsIgnoreCase("ping")) {
-                GrizzlyMessage retMessage = new GrizzlyMessage();
-                retMessage.setId(message.getId());
-                retMessage.setStatus(MessageStatus.Completed);
-                retMessage.setCommand(message.getCommand());
-                retMessage.setData((System.currentTimeMillis() + "").getBytes());
-                ctx.getConnection().write(retMessage);
-            } else {
-                GrizzlyMessage retMessage = new GrizzlyMessage();
-                retMessage.setId(message.getId());
-                retMessage.setStatus(MessageStatus.Failed);
-                retMessage.setCommand(message.getCommand());
-                retMessage.setData("no command".getBytes());
-                ctx.getConnection().write(retMessage);
-            }
-        } else {
-            Stream stream = new GrizzlyStream(session.getId(), command, message);
-            Workers.getExecutorService(message).execute(command, stream, message, session);
-        }
+        Stream stream = new GrizzlyStream(session.getId(), command, message);
+        Workers.getExecutorService(message).execute(command, stream, message, session);
         return ctx.getStopAction();
     }
 
-
-
-    
     class GrizzlyStream<T> implements Stream<T> {
         
         Long sessionId;

@@ -94,6 +94,7 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
                 readyToCloseChannels.add(channel);
             }
         }
+        log.warn("unreachable {}", node);
         throw new RpcException(RpcErrorCode.UNREACHABLE_NODE);
     }
 
