@@ -27,7 +27,7 @@ public class GrizzlyRpcChannel extends RpcChannel {
     TCPNIOConnection connection;
 
     static ClientStreamManager streamManager = new ClientStreamManager();
-    
+
     @Override
     public void start() {
         if (transport == null) {
@@ -35,7 +35,7 @@ public class GrizzlyRpcChannel extends RpcChannel {
             FilterChainBuilder fbuilder = FilterChainBuilder.stateless();
             fbuilder.add(new TransportFilter());
             fbuilder.add(new GrizzlyRpcMessageFilter());
-            fbuilder.add(new BaseFilter(){
+            fbuilder.add(new BaseFilter() {
                 @Override
                 public NextAction handleClose(FilterChainContext ctx) throws IOException {
                     Connection connection = ctx.getConnection();
@@ -43,17 +43,15 @@ public class GrizzlyRpcChannel extends RpcChannel {
                     log.info("connection:{} closed!", connection);
                     return super.handleClose(ctx);
                 }
-    
+
                 @Override
                 public NextAction handleRead(FilterChainContext ctx) throws IOException {
                     GrizzlyMessage message = ctx.getMessage();
-                    if(log.isDebugEnabled()) {
-                        log.debug("{}, recv: {}", getId(), message);
-                    }
+                    log.debug("{}, recv: {},{}", getId(), message, ctx.getConnection());
                     //update active time
                     activeTime = System.currentTimeMillis();
                     //waiting to close message, reject all new request
-                    if(message.getCommand().equals("close")){
+                    if (message.getCommand().equals("close")) {
                         Connection connection = ctx.getConnection();
                         readyToCloseConns.add(connection);
                         active = false;
@@ -82,7 +80,7 @@ public class GrizzlyRpcChannel extends RpcChannel {
         }
         this.connect();
     }
-    
+
     @Override
     public boolean connect() {
         if (connection != null && connection.isOpen() && connection.canWrite()) {
@@ -105,7 +103,7 @@ public class GrizzlyRpcChannel extends RpcChannel {
         return (connection != null && connection.isOpen() && connection.canWrite());
     }
 
-    protected GrizzlyMessage sendMessage(String command, byte[] body){
+    protected GrizzlyMessage sendMessage(String command, byte[] body) {
         checkConnection();
         GrizzlyMessage message = new GrizzlyMessage();
         message.setId(_ID.incrementAndGet());
@@ -113,23 +111,23 @@ public class GrizzlyRpcChannel extends RpcChannel {
         message.setData(body);
         message.setStatus(MessageStatus.Sending);
         this.connection.write(message);
-        if(log.isDebugEnabled()){
-            log.debug("send msg: {}", message);
+        if (log.isDebugEnabled()) {
+            log.debug("send msg: {}, {}", message, this.connection);
         }
         return message;
     }
 
     private void checkConnection() {
-        synchronized (connection){
+        synchronized (connection) {
             long st = System.currentTimeMillis();
             //不超过5s以内进行重试，如果真连不上，就放弃当前channel
-            while(readyToCloseConns.contains(connection) && System.currentTimeMillis() - st>5000){
+            while (readyToCloseConns.contains(connection) && System.currentTimeMillis() - st > 5000) {
                 try {
                     log.info("waiting for switch connection");
                     connect();
                     log.info("switch connection success, {}", connection);
                     return;
-                } catch (RpcException e){
+                } catch (RpcException e) {
                     if (e.getCode() == RpcErrorCode.UNREACHABLE_NODE) {
                         continue;
                     }

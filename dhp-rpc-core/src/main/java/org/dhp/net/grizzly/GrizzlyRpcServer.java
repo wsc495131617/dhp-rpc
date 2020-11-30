@@ -9,7 +9,6 @@ import org.glassfish.grizzly.filterchain.FilterChainBuilder;
 import org.glassfish.grizzly.filterchain.TransportFilter;
 import org.glassfish.grizzly.nio.transport.TCPNIOTransport;
 import org.glassfish.grizzly.nio.transport.TCPNIOTransportBuilder;
-import org.glassfish.grizzly.strategies.SameThreadIOStrategy;
 import org.glassfish.grizzly.threadpool.ThreadPoolConfig;
 
 import java.io.IOException;
@@ -43,7 +42,7 @@ public class GrizzlyRpcServer implements IRpcServer {
         builder.setKeepAlive(true);
         builder.setTcpNoDelay(true);
         builder.setLinger(0);
-        builder.setIOStrategy(SameThreadIOStrategy.getInstance());
+//        builder.setIOStrategy(SameThreadIOStrategy.getInstance());
         builder.setSelectorThreadPoolConfig(ThreadPoolConfig.defaultConfig().setCorePoolSize(workThread));
         
         transport = builder.build();

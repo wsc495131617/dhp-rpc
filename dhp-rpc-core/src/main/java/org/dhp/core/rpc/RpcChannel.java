@@ -35,7 +35,7 @@ public abstract class RpcChannel {
     protected Set<Object> readyToCloseConns = ConcurrentHashMap.newKeySet();
     
     public RpcChannel(){
-        id = System.currentTimeMillis()*10000000+ ThreadLocalRandom.current().nextInt(1000000,9999999);
+        id = System.currentTimeMillis()*1000+ ThreadLocalRandom.current().nextInt(1000,9999);
     }
 
     protected boolean register(){
