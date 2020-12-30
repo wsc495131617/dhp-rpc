@@ -51,7 +51,7 @@ public class DhpServerRegister implements BeanPostProcessor, ResourceLoaderAware
             if (dhpProperties.type == ChannelType.Netty) {
                 server = new NettyRpcServer(dhpProperties.port, dhpProperties.getWorkThread());
             } else if(dhpProperties.type == ChannelType.NIO){
-                server = new NioRpcSocketServer(dhpProperties.getPort(),dhpProperties.getWorkThread(), methodManager);
+                server = new NioRpcSocketServer(dhpProperties.getPort(),dhpProperties.getWorkThread());
             } else {
                 server = new GrizzlyRpcServer(dhpProperties.port, dhpProperties.getWorkThread());
             }

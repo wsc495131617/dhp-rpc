@@ -58,4 +58,5 @@ public abstract class SessionManager implements Destroyable {
      * @param connection
      */
     public abstract void destorySession(Object connection);
+
 }

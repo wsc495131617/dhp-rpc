@@ -77,7 +77,6 @@ public class GrizzlyRpcServer implements IRpcServer {
 
     @Override
     public void running() {
-
     }
 
     @Override

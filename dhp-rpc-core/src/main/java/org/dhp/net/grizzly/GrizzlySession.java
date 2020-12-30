@@ -14,9 +14,10 @@ public class GrizzlySession extends Session {
     public GrizzlySession(Connection connection){
         this.connection = connection;
     }
-    
+
     @Override
     public void write(Message message) {
+        this.incrementCount();
         this.connection.write(message);
     }
     

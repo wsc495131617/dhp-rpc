@@ -56,6 +56,7 @@ public class Workers {
 
     /**
      * 纯计算，可以使用同步锁，粒度足够小
+     *
      * @param message
      * @return
      */
@@ -92,12 +93,25 @@ public class Workers {
                 costAvg = NEW_WORKER_THRESHOLD * 1000000;
             }
             worker.setAvg(commandId, NEW_WORKER_THRESHOLD * 1000000 / 2);
-            worker = createWorker("RES_CMD_" + commandId);
+            worker = createWorker("RES_CMD_" + simpleCommandId(commandId));
             worker.setAvg(commandId, costAvg);
             commandWorkers.put(commandId, worker);
             logger.info("创建新的{},commandId={}", worker, commandId);
         }
         return worker;
+    }
+
+    private static String simpleCommandId(String commandId) {
+        String[] arr = commandId.split("\\.");
+        String simple = "";
+        for (int i = arr.length - 1; i >= 0; i--) {
+            if (simple.length() == 0) {
+                simple = arr[i];
+            } else {
+                simple = arr[i].charAt(0) + "." + simple;
+            }
+        }
+        return simple;
     }
 
     public static RpcExecutorService createWorker(String name) {

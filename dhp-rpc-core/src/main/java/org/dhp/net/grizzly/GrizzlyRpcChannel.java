@@ -112,7 +112,7 @@ public class GrizzlyRpcChannel extends RpcChannel {
         message.setStatus(MessageStatus.Sending);
         this.connection.write(message);
         if (log.isDebugEnabled()) {
-            log.debug("send msg: {}, {}", message, this.connection);
+            log.debug("send msg: {}, {}, isOpen={}", message, this.connection, this.connection.isOpen());
         }
         return message;
     }

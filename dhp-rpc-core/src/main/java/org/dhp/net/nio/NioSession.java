@@ -26,9 +26,12 @@ public class NioSession extends Session {
     @Override
     public void write(Message message) {
         try {
+            //每秒重复发送，那么就缓存，异步统一写入
+            if(this.incrementCount()>1){
+
+            }
             channel.write(((NioMessage) message).pack());
         }catch (IOException e){
-
         }
     }
 

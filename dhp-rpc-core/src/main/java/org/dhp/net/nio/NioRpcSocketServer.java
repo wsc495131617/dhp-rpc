@@ -25,7 +25,7 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
     NioSessionManager sessionManager;
     RpcServerMethodManager methodManager;
 
-    public NioRpcSocketServer(int port, int workThread, RpcServerMethodManager methodManager) {
+    public NioRpcSocketServer(int port, int workThread) {
         this.port = port;
         this.workThread = workThread;
         this.sessionManager = new NioSessionManager();
