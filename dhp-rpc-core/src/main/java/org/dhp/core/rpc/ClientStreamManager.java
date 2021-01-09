@@ -8,18 +8,19 @@ import org.dhp.core.spring.FrameworkException;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 
 /**
  * 服务端的StreamManager，用于管理所有的流
+ *
  * @author zhangcb
  */
 @Slf4j
-public class ClientStreamManager {
-    
+public class ClientStreamManager implements Runnable {
+
     static Map<Integer, Stream> handlerMap = new ConcurrentHashMap<>();
     static Map<Integer, Message> streamMessages = new ConcurrentHashMap<>();
-    
+
     public Throwable dealThrowable(Message message) {
         RpcFailedResponse failedResponse = ProtostuffUtils.deserialize(message.getData(), RpcFailedResponse.class);
         if (RpcException.class.getName().equalsIgnoreCase(failedResponse.getClsName())) {
@@ -30,9 +31,10 @@ public class ClientStreamManager {
             return failedResponse.unpackThrowable();
         }
     }
-    
+
     /**
      * 设置流
+     *
      * @param message
      * @param stream
      */
@@ -40,13 +42,37 @@ public class ClientStreamManager {
         handlerMap.put(message.getId(), stream);
         streamMessages.put(message.getId(), message);
     }
-    
+
+    protected LinkedBlockingQueue<Message> cacheMessages = new LinkedBlockingQueue<>();
+
+    protected ScheduledExecutorService asyncDealMessagePool = Executors.newScheduledThreadPool(4);
+
+    public ClientStreamManager() {
+
+    }
+
+    @Override
+    public void run() {
+        try {
+            Message message = cacheMessages.take();
+            if (message != null) {
+                handleMessage(message);
+            }
+        } catch (Throwable e) {
+            log.warn("Warn ClientStreamManager:" + e.getMessage(), e);
+        }
+    }
+
     /**
      * Deal message from rpc server
+     *
      * @param message
      */
-    public void handleMessage(Message message){
-        if (!handlerMap.containsKey(message.getId())) {
+    public void handleMessage(Message message) {
+        if (!handlerMap.containsKey(message.getId()) && !streamMessages.containsKey(message.getId())) {
+            cacheMessages.add(message);
+            log.info("message so fast:{}", message);
+            asyncDealMessagePool.schedule(this, 1, TimeUnit.MILLISECONDS);
             return;
         }
         Stream handler = handlerMap.get(message.getId());
@@ -76,6 +102,6 @@ public class ClientStreamManager {
                 throw new FrameworkException("Sending MessageStatus can't response");
         }
     }
-    
-    
+
+
 }
