@@ -50,9 +50,9 @@ public class NettyRpcChannel extends RpcChannel {
                             @Override
                             public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
                                 NettyMessage message = (NettyMessage) msg;
-                                if (log.isDebugEnabled()) {
-                                    log.debug("recv: {}", msg);
-                                }
+//                                if (log.isDebugEnabled()) {
+//                                    log.debug("recv: {}", msg);
+//                                }
                                 //update active time
                                 activeTime = System.currentTimeMillis();
                                 //close

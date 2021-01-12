@@ -47,7 +47,7 @@ public class GrizzlyRpcChannel extends RpcChannel {
                 @Override
                 public NextAction handleRead(FilterChainContext ctx) throws IOException {
                     GrizzlyMessage message = ctx.getMessage();
-                    log.debug("{}, recv: {},{}", getId(), message, ctx.getConnection());
+//                    log.debug("{}, recv: {},{}", getId(), message, ctx.getConnection());
                     //update active time
                     activeTime = System.currentTimeMillis();
                     //waiting to close message, reject all new request
@@ -111,9 +111,9 @@ public class GrizzlyRpcChannel extends RpcChannel {
         message.setData(body);
         message.setStatus(MessageStatus.Sending);
         this.connection.write(message);
-        if (log.isDebugEnabled()) {
-            log.debug("send msg: {}, {}, isOpen={}", message, this.connection, this.connection.isOpen());
-        }
+//        if (log.isDebugEnabled()) {
+//            log.debug("send msg: {}, {}, isOpen={}", message, this.connection, this.connection.isOpen());
+//        }
         return message;
     }
 
