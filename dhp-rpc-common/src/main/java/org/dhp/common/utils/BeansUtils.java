@@ -113,14 +113,14 @@ public class BeansUtils {
         for (String key : map.keySet()) {
             if (beanMap.containsKey(key)) {
                 Object value = map.get(key);
-                if(skipBlankOrZero) {
-                    if(Cast.isSupport(beanMap.getPropertyType(key))) {
+                if (skipBlankOrZero) {
+                    if (Cast.isSupport(beanMap.getPropertyType(key))) {
                         beanMap.put(key, Cast.to(Cast.toString(value), beanMap.getPropertyType(key)));
                     } else {
                         beanMap.put(key, value);
                     }
                 } else {
-                    if(Cast.isSupport(beanMap.getPropertyType(key))) {
+                    if (Cast.isSupport(beanMap.getPropertyType(key))) {
                         beanMap.put(key, Cast.to(Cast.toString(value), beanMap.getPropertyType(key)));
                     } else {
                         beanMap.put(key, value);
@@ -148,35 +148,11 @@ public class BeansUtils {
             for (Object field : map1.keySet()) {
                 Object value = map1.get(field);
                 if (map2.containsKey(field)) {
-                    if(map1.getPropertyType(field.toString()).equals(map2.getPropertyType(field.toString()))) {
+                    if (map1.getPropertyType(field.toString()).equals(map2.getPropertyType(field.toString()))) {
                         map2.put(field, value);
                     }
                 }
             }
-
-            // BeanCopier beanCopier;
-            // Class<?> fromCls = origin.getClass();
-            // Class<?> toCls = dest.getClass();
-            // Map<Class<?>, BeanCopier> map;
-            // if (cacheCopier.containsKey(fromCls)) {
-            // map = cacheCopier.get(fromCls);
-            // } else {
-            // map = new ConcurrentHashMap<>();
-            // Map<Class<?>, BeanCopier> old = cacheCopier.putIfAbsent(fromCls, map);
-            // if (old != null) {
-            // map = old;
-            // }
-            // }
-            // if (map.containsKey(toCls)) {
-            // beanCopier = map.get(toCls);
-            // } else {
-            // beanCopier = BeanCopier.create(fromCls, toCls, true);
-            // BeanCopier old = map.putIfAbsent(toCls, beanCopier);
-            // if (old != null) {
-            // beanCopier = old;
-            // }
-            // }
-            // beanCopier.copy(origin, dest, converter);
         }
 
     }
@@ -230,7 +206,7 @@ public class BeansUtils {
 
     /**
      * 把orig的属性复制到dest
-     * 
+     *
      * @param dest
      * @param orig
      */
@@ -242,8 +218,37 @@ public class BeansUtils {
     }
 
     /**
+     * 选择一些属性名称来对比dest和origin两个对象
+     * @param dest
+     * @param origin
+     * @param fields
+     * @return
+     */
+    public static boolean compareProperties(Object dest, Object origin, String... fields) {
+        BeanMap map1 = BeanMap.create(dest);
+        BeanMap map2 = BeanMap.create(origin);
+        for (String field : fields) {
+            if (map1.containsKey(field) && map2.containsKey(field)) {
+                //两个属性类型一致
+                Object value = map1.get(field);
+                Object value2 = map2.get(field);
+                if(value != null && value2 != null) {
+                    if (!value2.equals(value)) {
+                        return false;
+                    }
+                } else if(value == null && value2 == null){
+                    continue;
+                } else {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
      * 把destList的对象复制到origList的对象里面
-     * 
+     *
      * @param destList
      * @param origList
      * @param cls
@@ -300,7 +305,6 @@ public class BeansUtils {
         }
         return values;
     }
-
 
 
     public static void setProperty(Object bean, String key, String value) {
