@@ -23,6 +23,10 @@ public class ProtostuffUtils {
     }
 
     static Map<Class, RuntimeSchema> cacheSchema = new ConcurrentHashMap<>();
+    static {
+        //允许List字段空的时候序列化null
+        System.setProperty("protostuff.runtime.pojo_schema_on_collection_fields","true");
+    }
 
     static RuntimeSchema getSchema(Class cls) {
         if (cacheSchema.containsKey(cls)) {
