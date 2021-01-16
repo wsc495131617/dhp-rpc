@@ -62,6 +62,14 @@ public class DateUtils {
         }
     }
 
+    public static Date parse(String date, String formatText) {
+        try {
+            return getDateFormat(formatText).parse(date);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /**
      * 20190101 + 010101 转 Date对象
      * 
@@ -199,7 +207,7 @@ public class DateUtils {
      * @param pattern
      * @return
      */
-    private static SimpleDateFormat getDateFormat(String pattern) {
+    public static SimpleDateFormat getDateFormat(String pattern) {
         return new SimpleDateFormat(pattern);
     }
 
