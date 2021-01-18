@@ -189,10 +189,6 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
                 throw e.getCause();
             } catch (TimeoutException e) {
                 throw new RpcException(RpcErrorCode.TIMEOUT);
-            } finally {
-                if (log.isInfoEnabled()) {
-                    log.info("called {}", command.getMethod());
-                }
             }
         } else {
             return null;
