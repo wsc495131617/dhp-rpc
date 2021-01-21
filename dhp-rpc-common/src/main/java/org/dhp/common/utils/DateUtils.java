@@ -5,6 +5,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.TimeZone;
 
 /**
  * 功能说明: 日期工具<br>
@@ -494,6 +495,21 @@ public class DateUtils {
         Calendar calendar = Calendar.getInstance();
         // 设置为第一天
         calendar.set(Calendar.DAY_OF_MONTH, 1);
+        calendar.set(Calendar.HOUR, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        return calendar.getTime();
+    }
+
+    public static Date getCurrentYearBeginDay() {
+        return getCurrentYearBeginDay(TimeZone.getDefault());
+    }
+
+    public static Date getCurrentYearBeginDay(TimeZone timeZone) {
+        Calendar calendar = Calendar.getInstance(timeZone);
+        // 设置为第一天
+        calendar.set(Calendar.DAY_OF_YEAR, 1);
         calendar.set(Calendar.HOUR, 0);
         calendar.set(Calendar.MINUTE, 0);
         calendar.set(Calendar.SECOND, 0);

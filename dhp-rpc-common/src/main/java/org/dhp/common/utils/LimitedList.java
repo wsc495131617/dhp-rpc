@@ -3,7 +3,7 @@ package org.dhp.common.utils;
 import java.util.Collection;
 import java.util.Vector;
 
-public class LimitedList<E extends Number> extends Vector<E> {
+public class LimitedList<E> extends Vector<E> {
 	
 	int limit = Integer.MAX_VALUE;
 	
