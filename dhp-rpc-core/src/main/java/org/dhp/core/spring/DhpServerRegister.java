@@ -79,6 +79,7 @@ public class DhpServerRegister implements BeanPostProcessor, ResourceLoaderAware
             }
         }
         if (interCls != null) {
+            log.info("addDServiceBean: {}", bean);
             methodManager.addServiceBean(bean, interCls);
         }
         return bean;
