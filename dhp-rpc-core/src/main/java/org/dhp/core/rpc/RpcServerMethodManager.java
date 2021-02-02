@@ -24,7 +24,7 @@ public class RpcServerMethodManager implements IMethodManager{
     Map<String, ServerCommand> commands = new ConcurrentHashMap<>();
 
     public void addServiceBean(Object bean, Class<?> cls) {
-        log.info("Add Service {}", cls.getName());
+        log.info("Add Service={}, bean={}", cls.getName(), bean);
         Method[] methods = cls.getDeclaredMethods();
         DService dService = cls.getAnnotation(DService.class);
         for (Method method : methods) {
@@ -33,7 +33,7 @@ public class RpcServerMethodManager implements IMethodManager{
     }
 
     protected void addMethod(Method method, Object bean, Class<?> cls) {
-        log.info("Add method {}", method);
+        log.info("Add method: {}", method);
         ServerCommand command = new ServerCommand();
         command.setMethod(method);
         command.setCls(cls);
@@ -54,9 +54,9 @@ public class RpcServerMethodManager implements IMethodManager{
         Type returnType = method.getGenericReturnType();
         MethodType methodType;
 
-        //入参为1个
+        //1 argument
         if (args.length == 1) {
-            //一定要是ListenableFuture 或者是 List 多结果集
+            //must be StreamFuture or List result
             if (returnType instanceof ParameterizedType) {
                 if(List.class.isAssignableFrom((Class)((ParameterizedType) returnType).getRawType())){
                     methodType = MethodType.List;
@@ -64,7 +64,7 @@ public class RpcServerMethodManager implements IMethodManager{
                 else if (StreamFuture.class.isAssignableFrom((Class<?>) ((ParameterizedType) returnType).getRawType())) {
                     methodType = MethodType.Future;
                 } else {
-                    throw new FrameworkException("Method ParameterizedType Return must be ListenableFuture");
+                    throw new FrameworkException("Method ParameterizedType Return must be StreamFuture");
                 }
             } else {
                 methodType = MethodType.Default;
@@ -72,7 +72,7 @@ public class RpcServerMethodManager implements IMethodManager{
 
         } else if (args.length == 2) {//如果入参是2个，那么就说明，其中一个是入参对象，另外一个是Stream流对象
             methodType = MethodType.Stream;
-        } else {
+        } else {// Unsupport larger then 2 arguments
             throw new RpcException(RpcErrorCode.ILLEGAL_PARAMETER_DEFINITION);
         }
         command.setType(methodType);

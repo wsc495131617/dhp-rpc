@@ -68,7 +68,7 @@ public class DhpServerRegister implements BeanPostProcessor, ResourceLoaderAware
     }
     
     @Override
-    public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+    public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
         Class<?>[] clslist = bean.getClass().getInterfaces();
         Class<?> interCls = null;
         for (Class<?> cls : clslist) {
@@ -79,7 +79,6 @@ public class DhpServerRegister implements BeanPostProcessor, ResourceLoaderAware
             }
         }
         if (interCls != null) {
-            log.info("addDServiceBean: {}", bean);
             methodManager.addServiceBean(bean, interCls);
         }
         return bean;
