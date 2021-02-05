@@ -2,14 +2,16 @@ package org.chzcb.redis;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.core.RedisOperations;
-import org.springframework.data.redis.core.SessionCallback;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
-import java.util.List;
+import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 通过Redis实现的锁
@@ -24,6 +26,21 @@ public class LockUtils {
     @Resource
     StringRedisTemplate stringRedisTemplate;
 
+    private DefaultRedisScript<Long> tryDelLuaScript;
+
+    private DefaultRedisScript<String> trySetLuaScript;
+
+    @PostConstruct
+    public void init() {
+        trySetLuaScript = new DefaultRedisScript<>();
+        trySetLuaScript.setResultType(String.class);
+        trySetLuaScript.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/try_set.lua")));
+
+        tryDelLuaScript = new DefaultRedisScript<>();
+        tryDelLuaScript.setResultType(Long.class);
+        tryDelLuaScript.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/try_del.lua")));
+    }
+
     /**
      * 尝试设置，乐观锁机制
      *
@@ -32,31 +49,45 @@ public class LockUtils {
      * @param oldValue
      * @return
      */
-    public boolean trySet(final String key, final String value, final String oldValue) {
-        Object ret = stringRedisTemplate.execute(new SessionCallback<Object>() {
-            @Override
-            public Object execute(RedisOperations operations) throws DataAccessException {
-                List<Object> result = null;
-                operations.watch(key);
-                operations.multi();
-                operations.opsForValue().get(key);
-                operations.opsForValue().set(key, value);
-                try {
-                    result = operations.exec();
-                    if (!result.isEmpty()) {
-                        if ((oldValue == null && result.get(0) == null) || oldValue.equals(result.get(0))) {
-                            return result;
-                        } else {
-                            log.warn("trySet key {} value from {} to {} failed, old {}", key, oldValue, value, result.get(0));
-                        }
-                        return null;
-                    }
-                } catch (Exception e) {
-                    log.info("trySet warning", e);
-                }
-                return null;
-            }
-        });
-        return ret != null;
+    public boolean trySet(String key, final String value, final String oldValue) {
+        String ret = stringRedisTemplate.execute(trySetLuaScript, Collections.singletonList(key), value, oldValue);
+        return "OK".equals(ret);
+    }
+
+    /**
+     * 尝试悲观锁，并返回锁值
+     *
+     * @param lockKey
+     * @param expire  锁超时时间，正常业务处理最坏的情况也不允许超过锁超时时间，如果业务处理时间不可控，那么请用zk锁
+     * @return
+     */
+    public String tryLock(String lockKey, long expire) {
+        String lockValue = String.valueOf(System.currentTimeMillis());
+        if (!stringRedisTemplate.opsForValue().setIfAbsent(lockKey, lockValue, expire, TimeUnit.MILLISECONDS)) {
+            return null;
+        }
+        return lockValue;
+    }
+
+    /**
+     * 释放锁
+     *
+     * @param lockKey
+     * @param lockValue
+     * @return
+     */
+    public boolean releaseLock(String lockKey, String lockValue) {
+        return 1l == tryDel(lockKey, lockValue);
+    }
+
+    /**
+     * 尝试删除，确保值就是老的才能删除
+     *
+     * @param key
+     * @param value
+     * @return
+     */
+    public Long tryDel(String key, String value) {
+        return stringRedisTemplate.execute(tryDelLuaScript, Collections.singletonList(key), value);
     }
 }
