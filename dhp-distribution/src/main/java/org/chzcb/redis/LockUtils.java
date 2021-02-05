@@ -54,6 +54,15 @@ public class LockUtils {
         return "OK".equals(ret);
     }
 
+
+    /**
+     *
+     * @param lockKey
+     * @return
+     */
+    public RedisLock tryLock(String lockKey) {
+        return tryLock(lockKey, 5000);
+    }
     /**
      * 尝试悲观锁，并返回锁值
      *
@@ -61,12 +70,17 @@ public class LockUtils {
      * @param expire  锁超时时间，正常业务处理最坏的情况也不允许超过锁超时时间，如果业务处理时间不可控，那么请用zk锁
      * @return
      */
-    public String tryLock(String lockKey, long expire) {
+    public RedisLock tryLock(String lockKey, long expire) {
         String lockValue = String.valueOf(System.currentTimeMillis());
+        RedisLock lock = RedisLock.builder()
+                .lockValue(lockValue)
+                .lockName(lockKey)
+                .lockUtils(this)
+                .build();
         if (!stringRedisTemplate.opsForValue().setIfAbsent(lockKey, lockValue, expire, TimeUnit.MILLISECONDS)) {
             return null;
         }
-        return lockValue;
+        return lock;
     }
 
     /**
