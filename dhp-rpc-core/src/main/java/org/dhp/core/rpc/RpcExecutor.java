@@ -3,6 +3,7 @@ package org.dhp.core.rpc;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.rpc.StreamFuture;
+import org.dhp.common.utils.JacksonUtil;
 import org.dhp.common.utils.ProtostuffUtils;
 
 import java.lang.reflect.InvocationTargetException;
@@ -24,14 +25,18 @@ public class RpcExecutor {
     }
 
     public void execute() {
-        if(command == null) {
+        if (command == null) {
             if (message.getCommand().equalsIgnoreCase("ping")) {
                 message.setStatus(MessageStatus.Completed);
                 message.setData((System.currentTimeMillis() + "").getBytes());
             } else {
-                message.setId(message.getId());
                 message.setStatus(MessageStatus.Failed);
-                message.setData("no command".getBytes());
+                RpcFailedResponse rpcFailedResponse = new RpcFailedResponse();
+                rpcFailedResponse.setClsName(RpcException.class.getName());
+                RpcException rpcException = new RpcException(RpcErrorCode.COMMAND_NOT_IMPLEMENTED);
+                rpcFailedResponse.setMessage(JacksonUtil.bean2Json(rpcException.getResponse()));
+                message.setData(ProtostuffUtils.serialize(rpcFailedResponse));
+                log.error("no command impl: {}", message.getCommand());
             }
             session.write(message);
             return;
@@ -69,7 +74,7 @@ public class RpcExecutor {
                 throwable = e;
             } catch (InvocationTargetException e) {
                 Throwable cause = e.getCause();
-                if(cause != null) {
+                if (cause != null) {
                     log.error(cause.getMessage(), cause);
                 }
                 throwable = cause;

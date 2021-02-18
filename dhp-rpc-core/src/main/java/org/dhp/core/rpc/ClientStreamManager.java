@@ -96,6 +96,7 @@ public class ClientStreamManager implements Runnable {
                 handler.onNext(message);
                 break;
             case Failed:
+                //需要分为no command还是别的
                 handler.onFailed(dealThrowable(message));
                 break;
             default:

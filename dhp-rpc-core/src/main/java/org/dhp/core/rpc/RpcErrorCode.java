@@ -13,6 +13,7 @@ public enum RpcErrorCode {
     UNKNOWN_EXEPTION(1005, "unknow exception: {}, {}"),
     TIMEOUT(1006, "timeout"),
     SEND_MESSAGE_LIMIT(1007, "Send limit"),
+    COMMAND_NOT_IMPLEMENTED(1008, "Command is not implemented, check service impl"),
 
     PARAMETER_ERROR(2001, "parameter error: {}"),
     AUTH_ERROR(2002, "auth error");
