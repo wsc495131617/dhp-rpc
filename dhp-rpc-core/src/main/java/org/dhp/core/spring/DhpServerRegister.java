@@ -8,6 +8,8 @@ import org.dhp.core.rpc.RpcServerMethodManager;
 import org.dhp.net.grizzly.GrizzlyRpcServer;
 import org.dhp.net.netty4.NettyRpcServer;
 import org.dhp.net.nio.NioRpcSocketServer;
+import org.springframework.aop.SpringProxy;
+import org.springframework.aop.framework.Advised;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.*;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -70,6 +72,9 @@ public class DhpServerRegister implements BeanPostProcessor, ResourceLoaderAware
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
         Class<?>[] clslist = bean.getClass().getInterfaces();
+        if(bean instanceof Advised) {
+            clslist = ((Advised) bean).getTargetClass().getInterfaces();
+        }
         Class<?> interCls = null;
         for (Class<?> cls : clslist) {
             DService an = cls.getAnnotation(DService.class);
