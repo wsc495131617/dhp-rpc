@@ -39,6 +39,7 @@ public class RpcExecutor {
                 log.error("no command impl: {}", message.getCommand());
             }
             session.write(message);
+            Message.requestLatency.labels("serverWrited", message.getCommand(), message.getStatus().name()).observe(System.nanoTime() - message.ts);
             return;
         }
         Type[] paramTypes = command.getMethod().getParameterTypes();
@@ -52,7 +53,9 @@ public class RpcExecutor {
             try {
                 //这里的stream会受到服务端自己管理，因此当session关闭的时候，考虑集群，不能把客户端的stream留在本地，需要移除，
                 // 因此需要加入到session管理，session销毁，就应该关闭stream，让客户端自己重新发起stream的请求
+                Message.requestLatency.labels("beforeServerStreamInvoke", message.getCommand(), message.getStatus().name()).observe(System.nanoTime() - message.ts);
                 command.getMethod().invoke(command.getBean(), params);
+                Message.requestLatency.labels("serverStreamInvoked", message.getCommand(), MessageStatus.Completed.name()).observe(System.nanoTime() - message.ts);
                 session.addStream(stream);
             } catch (RuntimeException e) {
                 log.error(e.getMessage(), e);
@@ -66,7 +69,9 @@ public class RpcExecutor {
             Throwable throwable = null;
             try {
                 Object param = ProtostuffUtils.deserialize(message.getData(), (Class<?>) paramTypes[0]);
+                Message.requestLatency.labels("beforeServerInvoke", message.getCommand(), message.getStatus().name()).observe(System.nanoTime() - message.ts);
                 result = command.getMethod().invoke(command.getBean(), new Object[]{param});
+                Message.requestLatency.labels("serverInvoked", message.getCommand(), MessageStatus.Completed.name()).observe(System.nanoTime() - message.ts);
             } catch (RuntimeException e) {
                 log.error(e.getMessage(), e);
                 throwable = e;
@@ -90,18 +95,19 @@ public class RpcExecutor {
                 message.setMetadata(message.getMetadata());
                 message.setCommand(command.getName());
                 session.write(message);
+                Message.requestLatency.labels("serverWrited", message.getCommand(), message.getStatus().name()).observe(System.nanoTime() - message.ts);
             } else if (command.getType() == MethodType.Future) {// future<resp> call(req)
                 if (result == null) {
                     message.setStatus(MessageStatus.Completed);
                     message.setMetadata(message.getMetadata());
                     message.setCommand(command.getName());
                     session.write(message);
+                    Message.requestLatency.labels("serverWrited", message.getCommand(), message.getStatus().name()).observe(System.nanoTime() - message.ts);
                 } else {
                     StreamFuture<Object> future = (StreamFuture) result;
                     future.addStream(stream);
                     //加入到session管理里面，当session销毁，异步future就需要被cancel
                     session.addFuture(future);
-
                 }
             }
         }

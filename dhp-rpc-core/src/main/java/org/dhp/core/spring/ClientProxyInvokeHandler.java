@@ -132,7 +132,10 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
         Stream finalArgStream = argStream;
         FutureImpl finalFuture = future;
         MethodType finalMethodType1 = methodType;
+        Long ts = System.currentTimeMillis();
         Stream<Message> stream = new Stream<Message>() {
+            long ts = System.currentTimeMillis();
+
             @Override
             public void onCanceled() {
                 if (finalMethodType == MethodType.Stream) {
@@ -140,6 +143,7 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
                 } else {
                     finalFuture.cancel(false);
                 }
+                Message.requestLatency.labels("clientInvoked", command.getName(), MessageStatus.Canceled.name()).observe(System.nanoTime() - ts);
             }
 
             @Override
@@ -150,6 +154,7 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
                 } else {
                     finalFuture.result(ret);
                 }
+                Message.requestLatency.labels("clientInvoked", command.getName(), MessageStatus.Updating.name()).observe(System.nanoTime() - ts);
             }
 
             @Override
@@ -159,6 +164,7 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
                 } else {
                     finalFuture.failure(throwable);
                 }
+                Message.requestLatency.labels("clientInvoked", command.getName(), MessageStatus.Failed.name()).observe(System.nanoTime() - ts);
             }
 
             @Override
@@ -168,6 +174,7 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
                 } else {
                     finalFuture.result(null);
                 }
+                Message.requestLatency.labels("clientInvoked", command.getName(), MessageStatus.Completed.name()).observe(System.nanoTime() - ts);
             }
         };
         if (log.isInfoEnabled()) {
@@ -188,6 +195,7 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
             } catch (ExecutionException e) {
                 throw e.getCause();
             } catch (TimeoutException e) {
+                Message.requestLatency.labels("clientInvoked", command.getName(), MessageStatus.Timeout.name()).observe(System.nanoTime() - ts);
                 throw new RpcException(RpcErrorCode.TIMEOUT);
             }
         } else {

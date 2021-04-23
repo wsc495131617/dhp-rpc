@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Data
 @ConfigurationProperties(prefix = "zookeeper")
-public class ZookeeperUtils {
+public class ZookeeperUtil {
     String connectUrl;
     int connectTimeout = 300000;
     String rootPath = "/zk_locks";

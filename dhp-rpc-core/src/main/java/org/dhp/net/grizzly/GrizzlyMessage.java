@@ -15,7 +15,6 @@ import java.util.Map;
 public class GrizzlyMessage extends Message {
 
     public GrizzlyMessage() {
-
     }
 
     public GrizzlyMessage(Buffer buffer) {

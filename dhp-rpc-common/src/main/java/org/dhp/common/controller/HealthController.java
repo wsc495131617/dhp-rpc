@@ -10,4 +10,9 @@ public class HealthController {
     public String health() {
         return "OK";
     }
+
+    @RequestMapping("/dhp/time")
+    public Long time() {
+        return System.currentTimeMillis();
+    }
 }

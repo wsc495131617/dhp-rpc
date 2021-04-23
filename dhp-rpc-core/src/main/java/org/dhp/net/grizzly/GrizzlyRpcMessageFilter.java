@@ -12,6 +12,7 @@ import java.io.IOException;
 
 @Slf4j
 public class GrizzlyRpcMessageFilter extends BaseFilter {
+
     @Override
     public NextAction handleRead(FilterChainContext ctx) throws IOException {
         Buffer buffer = ctx.getMessage();
