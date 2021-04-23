@@ -132,9 +132,9 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
         Stream finalArgStream = argStream;
         FutureImpl finalFuture = future;
         MethodType finalMethodType1 = methodType;
-        Long ts = System.currentTimeMillis();
+        Long ts = System.nanoTime();
         Stream<Message> stream = new Stream<Message>() {
-            long ts = System.currentTimeMillis();
+            long ts = System.nanoTime();
 
             @Override
             public void onCanceled() {
@@ -143,7 +143,7 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
                 } else {
                     finalFuture.cancel(false);
                 }
-                Message.requestLatency.labels("clientInvoked", command.getName(), MessageStatus.Canceled.name()).observe(System.nanoTime() - ts);
+                Message.requestLatency.labels("clientInvoked", command.getName(), MessageStatus.Canceled.name()).observe(System.nanoTime() - this.ts);
             }
 
             @Override
@@ -154,7 +154,10 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
                 } else {
                     finalFuture.result(ret);
                 }
-                Message.requestLatency.labels("clientInvoked", command.getName(), MessageStatus.Updating.name()).observe(System.nanoTime() - ts);
+                if (log.isDebugEnabled()) {
+                    log.debug("clientInvoked {} updating cost: {}ns", value.getCommand(), System.nanoTime() - this.ts);
+                }
+                Message.requestLatency.labels("clientInvoked", command.getName(), MessageStatus.Updating.name()).observe(System.nanoTime() - this.ts);
             }
 
             @Override
@@ -164,7 +167,7 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
                 } else {
                     finalFuture.failure(throwable);
                 }
-                Message.requestLatency.labels("clientInvoked", command.getName(), MessageStatus.Failed.name()).observe(System.nanoTime() - ts);
+                Message.requestLatency.labels("clientInvoked", command.getName(), MessageStatus.Failed.name()).observe(System.nanoTime() - this.ts);
             }
 
             @Override
@@ -174,14 +177,14 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
                 } else {
                     finalFuture.result(null);
                 }
-                Message.requestLatency.labels("clientInvoked", command.getName(), MessageStatus.Completed.name()).observe(System.nanoTime() - ts);
+                Message.requestLatency.labels("clientInvoked", command.getName(), MessageStatus.Completed.name()).observe(System.nanoTime() - this.ts);
             }
         };
-        if (log.isInfoEnabled()) {
-            log.info("call {}, args: {}", command.getMethod(), JacksonUtil.bean2Json(args));
-        }
         //发送
         Integer messageId = sendMessage(command, argBody, stream);
+        if (log.isInfoEnabled()) {
+            log.info("call {} - {}, args: {}", messageId, command.getMethod(), JacksonUtil.bean2Json(args));
+        }
         if (messageId == null) {
             throw new RpcException(RpcErrorCode.SEND_MESSAGE_FAILED);
         }
