@@ -28,9 +28,27 @@ public class JacksonUtil {
         }
     }
 
+    public static byte[] bean2JsonBytes(Object obj) {
+        try {
+            return mapper.writeValueAsBytes(obj);
+        } catch (JsonProcessingException e) {
+            log.warn(e.getMessage(), e);
+            return null;
+        }
+    }
+
     public static <T> T json2Bean(String jsonStr, Class<T> objClass) {
         try {
             return mapper.readValue(jsonStr, objClass);
+        } catch (IOException e) {
+            log.warn(e.getMessage(), e);
+            return null;
+        }
+    }
+
+    public static <T> T bytes2Bean(byte[] bytes, Class<T> objClass) {
+        try {
+            return mapper.readValue(bytes, objClass);
         } catch (IOException e) {
             log.warn(e.getMessage(), e);
             return null;

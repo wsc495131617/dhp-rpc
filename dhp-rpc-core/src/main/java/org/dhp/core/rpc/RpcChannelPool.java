@@ -11,6 +11,7 @@ import org.springframework.beans.factory.InitializingBean;
 import javax.annotation.Resource;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -27,22 +28,23 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
     @Resource
     DhpProperties properties;
 
-    protected Map<String, RpcChannel[]> allChannels = new ConcurrentHashMap<>();
+    protected Map<Node, RpcChannel[]> allChannels = new ConcurrentHashMap<>();
 
-    public Map<String, RpcChannel[]> getAllChannels() {
+    public Map<Node, RpcChannel[]> getAllChannels() {
         return allChannels;
     }
 
     protected Node getNode(Command command) {
+        TreeSet<Node> nodes = new TreeSet<>();
         if (command.getNodeName() != null && properties.getNodes() != null) {
             for (Node node : properties.getNodes()) {
                 //如果
                 if (node.getName().equals(command.getNodeName())) {
-                    return node;
+                    nodes.add(node);
                 }
             }
         }
-        return null;
+        return nodes.pollFirst();
     }
 
     /**
@@ -58,21 +60,21 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
         }
         //if existed
         RpcChannel[] channels;
-        if (!allChannels.containsKey(node.getName())) {
+        if (!allChannels.containsKey(node)) {
             channels = new RpcChannel[node.getChannelSize()];
-            RpcChannel[] old = allChannels.putIfAbsent(node.getName(), channels);
+            RpcChannel[] old = allChannels.putIfAbsent(node, channels);
             if (old != null) {
                 channels = old;
             }
         } else {
-            channels = allChannels.get(node.getName());
+            channels = allChannels.get(node);
         }
         int len = channels.length;
         int randomIndex = RandomUtils.nextInt(0, len);
         for (int index = randomIndex; index < len + randomIndex; index++) {
             RpcChannel channel = channels[index % len];
             if (channel == null) {
-                synchronized (node.getName().intern()) {
+                synchronized (node) {
                     channel = new RpcChannelBuilder()
                             .setHost(node.getHost())
                             .setPort(node.getPort())

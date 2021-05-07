@@ -15,6 +15,8 @@ import java.util.List;
 public class DhpProperties {
     ChannelType type = ChannelType.Grizzly;
     int port;
+    String name;
+    String host;
     int workThread;
     int timeout = 15000;
     List<Node> nodes;

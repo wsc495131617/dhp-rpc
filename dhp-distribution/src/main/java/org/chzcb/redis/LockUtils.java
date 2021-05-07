@@ -1,6 +1,7 @@
 package org.chzcb.redis;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -19,7 +20,7 @@ import java.util.concurrent.TimeUnit;
  * 2. 悲观锁，颗粒度比较小的业务可以使用，确定的或者颗粒度大的业务可以通过ZKLocked或者ZookeeperUtils来实现
  */
 @Component
-@ConditionalOnClass(StringRedisTemplate.class)
+@ConditionalOnBean(StringRedisTemplate.class)
 @Slf4j
 public class LockUtils {
 
