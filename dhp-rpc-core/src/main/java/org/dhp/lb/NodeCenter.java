@@ -13,7 +13,6 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
@@ -25,7 +24,6 @@ import java.util.concurrent.CountDownLatch;
  */
 @Slf4j
 @Data
-@Component
 @ConditionalOnProperty(name = "dhp.lb.enable", havingValue = "true")
 public class NodeCenter implements InitializingBean, Watcher {
 
@@ -63,6 +61,18 @@ public class NodeCenter implements InitializingBean, Watcher {
             current.setHost(host);
             current.setPort(dhpProperties.getPort());
             createPath(currentPath, JacksonUtil.bean2JsonBytes(current), CreateMode.EPHEMERAL, "create node");
+        } else {
+            try {
+                List<String> list = zk.getChildren("/" + clusterName, false);
+                for (String path : list) {
+                    updateNextNode("/" + clusterName + "/" + path);
+                }
+                ;
+            } catch (KeeperException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
         zk.addWatch("/" + clusterName, this, AddWatchMode.PERSISTENT_RECURSIVE);
     }
@@ -74,6 +84,9 @@ public class NodeCenter implements InitializingBean, Watcher {
      */
     @Scheduled(fixedRate = 5000)
     public void updateNode() {
+        if (current == null) {
+            return;
+        }
         current.setCpuLoad(SystemInfoUtils.getProcessCpuLoad() + SystemInfoUtils.getSystemCpuLoad());
         current.setMemLoad((double) SystemInfoUtils.getUsedMemory() / (double) SystemInfoUtils.getTotalMemorySize());
         current.setTotalLoad((current.getCpuLoad() + current.getMemLoad()) / 2);
@@ -81,6 +94,45 @@ public class NodeCenter implements InitializingBean, Watcher {
             zk.setData(currentPath, JacksonUtil.bean2JsonBytes(current), -1);
         } catch (Exception e) {
             log.error("update Zk Error");
+        }
+    }
+
+    public void updateNextNode(String path) {
+        try {
+            byte[] content = zk.getData(path, false, null);
+            NodeStatus nodeStatus = JacksonUtil.bytes2Bean(content, NodeStatus.class);
+            List<Node> nodes = dhpProperties.getNodes();
+            if (nodes == null) {
+                nodes = new ArrayList<>();
+                dhpProperties.setNodes(nodes);
+            }
+            boolean hasNode = false;
+            for (Node node : nodes) {
+                if (node.getPath().equalsIgnoreCase(nodeStatus.getPath())) {
+                    if (nodeStatus.getCpuLoad() != null && nodeStatus.getCpuLoad() > 0) {
+                        node.setWeight(1 / nodeStatus.getCpuLoad());
+                    } else {
+                        node.setWeight(0.001);
+                    }
+                    hasNode = true;
+                }
+            }
+            if (!hasNode) {
+                Node node = new Node();
+                node.setName(nodeStatus.getName());
+                node.setHost(nodeStatus.getHost());
+                node.setPort(nodeStatus.getPort());
+                if (nodeStatus.getCpuLoad() != null && nodeStatus.getCpuLoad() > 0) {
+                    node.setWeight(1 / nodeStatus.getCpuLoad());
+                } else {
+                    node.setWeight(0.001);
+                }
+                node.setPath(path);
+                node.setTimeout(5000);
+                nodes.add(node);
+                log.info("add next node: {}", node);
+            }
+        } catch (KeeperException | InterruptedException e) {
         }
     }
 
@@ -109,46 +161,10 @@ public class NodeCenter implements InitializingBean, Watcher {
                 if (path.equalsIgnoreCase(currentPath)) {
                     return;
                 }
-                try {
-                    byte[] content = zk.getData(path, false, null);
-                    NodeStatus nodeStatus = JacksonUtil.bytes2Bean(content, NodeStatus.class);
-                    List<Node> nodes = dhpProperties.getNodes();
-                    if (nodes == null) {
-                        nodes = new ArrayList<>();
-                        dhpProperties.setNodes(nodes);
-                    }
-                    boolean hasNode = false;
-                    for (Node node : nodes) {
-                        if (node.getPath().equalsIgnoreCase(nodeStatus.getPath())) {
-                            if (nodeStatus.getCpuLoad() != null && nodeStatus.getCpuLoad() > 0) {
-                                node.setWeight(1 / nodeStatus.getCpuLoad());
-                            } else {
-                                node.setWeight(0.001);
-                            }
-                            hasNode = true;
-                        }
-                    }
-                    if (!hasNode) {
-                        Node node = new Node();
-                        node.setName(nodeStatus.getName());
-                        node.setHost(nodeStatus.getHost());
-                        node.setPort(nodeStatus.getPort());
-                        if (nodeStatus.getCpuLoad() != null && nodeStatus.getCpuLoad() > 0) {
-                            node.setWeight(1 / nodeStatus.getCpuLoad());
-                        } else {
-                            node.setWeight(0.001);
-                        }
-                        node.setPath(watchedEvent.getPath());
-                        node.setTimeout(5000);
-                        nodes.add(node);
-                        log.info("add next node: {}", node);
-                    }
-                } catch (KeeperException | InterruptedException e) {
-                }
-
+                updateNextNode(path);
             } else if (Event.EventType.NodeDeleted == watchedEvent.getType()) {
                 List<Node> nodes = dhpProperties.getNodes();
-                if(nodes == null || nodes.isEmpty()) {
+                if (nodes == null || nodes.isEmpty()) {
                     return;
                 }
                 for (Node node : nodes) {

@@ -3,6 +3,7 @@ package org.dhp.core.spring;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.annotation.DService;
 import org.dhp.core.rpc.RpcChannelPool;
+import org.dhp.lb.NodeCenter;
 import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -105,6 +106,11 @@ public class DhpClientRegister implements ImportBeanDefinitionRegistrar,
         BeanDefinition poolBeanDefinition = BeanDefinitionBuilder.rootBeanDefinition(RpcChannelPool.class).getBeanDefinition();
         registry.registerBeanDefinition(poolBeanDefinition.getBeanClassName(), poolBeanDefinition);
 
+        if(!"false".equalsIgnoreCase(environment.getProperty("dhp.lb.enable"))) {
+            //添加NodeCenter
+            BeanDefinition nodeCenterBeanDefinition = BeanDefinitionBuilder.rootBeanDefinition(NodeCenter.class).getBeanDefinition();
+            registry.registerBeanDefinition(nodeCenterBeanDefinition.getBeanClassName(), nodeCenterBeanDefinition);
+        }
     }
 
 

@@ -16,7 +16,7 @@
         <dependency>
             <groupId>org.chzcb</groupId>
             <artifactId>dhp-rpc-common</artifactId>
-            <version>${parent.version}</version>
+            <version>1.0.1</version>
             <exclusions>
                 <exclusion>
                     <artifactId>jackson-annotations</artifactId>

@@ -25,4 +25,9 @@ public class Node implements Comparable<Node> {
     public int compareTo(Node o) {
         return this.weight > o.getWeight() ? 1 : -1;
     }
+
+    @Override
+    public int hashCode() {
+        return name.hashCode()^host.hashCode()^port;
+    }
 }

@@ -20,7 +20,6 @@ import java.util.concurrent.TimeUnit;
  * 2. 悲观锁，颗粒度比较小的业务可以使用，确定的或者颗粒度大的业务可以通过ZKLocked或者ZookeeperUtils来实现
  */
 @Component
-@ConditionalOnBean(StringRedisTemplate.class)
 @Slf4j
 public class LockUtils {
 

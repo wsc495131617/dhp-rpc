@@ -87,8 +87,8 @@ public class GrizzlyRpcChannel extends RpcChannel {
             return true;
         }
         try {
-            log.info("connect to {}:{}", this.getHost(), this.getPort());
             connection = (TCPNIOConnection) transport.connect(this.getHost(), this.getPort()).get(this.getTimeout(), TimeUnit.MILLISECONDS);
+            log.info("connect to {}:{}, {}", this.getHost(), this.getPort(), connection);
             return register();
         } catch (InterruptedException e) {
             log.warn(e.getMessage(), e);
