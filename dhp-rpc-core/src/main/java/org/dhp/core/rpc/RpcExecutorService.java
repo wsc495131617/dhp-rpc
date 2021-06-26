@@ -31,7 +31,12 @@ public class RpcExecutorService implements Runnable {
     protected final Map<String, Double> commandCostList = new ConcurrentHashMap<>();
 
     public void execute(ServerCommand command, Stream stream, Message message, Session session) {
-        allTasks.add(new RpcExecutor(command, stream, message, session));
+        try {
+            allTasks.add(RpcExecutor.create(command, stream, message, session));
+        } catch (InterruptedException e) {
+            //超出队列运行的长度，熔断了
+            throw new RpcException(RpcErrorCode.AUTH_ERROR);
+        }
     }
 
     long lastWaking = System.nanoTime();
@@ -83,6 +88,10 @@ public class RpcExecutorService implements Runnable {
                 }
             } catch (Exception e) {
                 log.error(e.getMessage(), e);
+            } finally {
+                if (task != null) {
+                    task.release();
+                }
             }
         }
     }

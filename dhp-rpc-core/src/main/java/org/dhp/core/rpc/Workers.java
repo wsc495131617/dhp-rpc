@@ -52,8 +52,6 @@ public class Workers {
      */
     public static final double TMP_ELASTIC_COUNT = 20;
 
-    public static final BlockingQueue<Runnable> COMMAND_QUEUE = new LinkedBlockingQueue<>();
-
     /**
      * 纯计算，可以使用同步锁，粒度足够小
      *
@@ -70,8 +68,7 @@ public class Workers {
         if (commandWorkers.containsKey(commandId)) {
             RpcExecutorService worker = commandWorkers.get(commandId);
             // 首先worker的寿命要有1分钟吧，不然太浪费线程了,其次当前线程很空闲
-            if (worker.isOld(60000) && (worker.getAvg(commandId) <= POOL_WORKER_THRESHOLD * 1000000
-                    && worker.getSize() < TMP_ELASTIC_COUNT && COMMAND_QUEUE.isEmpty())) {
+            if (worker.isOld(60000)) {
                 worker.stop();
                 logger.info("关闭：{}", worker);
                 commandWorkers.remove(commandId);

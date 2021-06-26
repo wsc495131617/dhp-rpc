@@ -16,7 +16,8 @@ public enum RpcErrorCode {
     COMMAND_NOT_IMPLEMENTED(1008, "Command is not implemented, check service impl"),
 
     PARAMETER_ERROR(2001, "parameter error: {}"),
-    AUTH_ERROR(2002, "auth error");
+    AUTH_ERROR(2002, "auth error"),
+    REJECTED(2003, "request rejected");
 
     private RpcErrorCode(int code, String msg) {
         this.code = code;

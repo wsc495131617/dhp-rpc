@@ -13,7 +13,9 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,8 +26,7 @@ import java.util.concurrent.CountDownLatch;
  */
 @Slf4j
 @Data
-@ConditionalOnProperty(name = "dhp.lb.enable", havingValue = "true")
-public class NodeCenter implements InitializingBean, Watcher {
+public class NodeCenter implements Watcher {
 
     /**
      * 集群名称
@@ -45,8 +46,8 @@ public class NodeCenter implements InitializingBean, Watcher {
 
     ZooKeeper zk;
 
-    @Override
-    public void afterPropertiesSet() throws Exception {
+    @PostConstruct
+    public void init() throws Exception {
         zk = new ZooKeeper(zkUrl, 5000, this);
         connectedSemaphore.await();
         if (dhpProperties.getPort() > 0) {

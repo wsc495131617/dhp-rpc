@@ -1,5 +1,6 @@
 package org.dhp.core.rpc;
 
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.rpc.StreamFuture;
@@ -8,14 +9,28 @@ import org.dhp.common.utils.ProtostuffUtils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
+@Data
 @Slf4j
 public class RpcExecutor {
 
-    final Session session;
-    final Message message;
-    final ServerCommand command;
-    final Stream stream;
+    static RpcExecutorPool pool = new RpcExecutorPool(10);
+
+    public static RpcExecutor create(ServerCommand command, Stream stream, Message message, Session session) throws InterruptedException {
+        return pool.poll(command, stream, message, session);
+    }
+
+    Session session;
+    Message message;
+    ServerCommand command;
+    Stream stream;
+
+    public RpcExecutor() {
+
+    }
 
     public RpcExecutor(ServerCommand command, Stream stream, Message message, Session session) {
         this.session = session;
@@ -112,4 +127,46 @@ public class RpcExecutor {
             }
         }
     }
+
+    public void release() {
+        this.message = null;
+        this.session = null;
+        this.command = null;
+        this.stream = null;
+        pool.offer(this);
+    }
+
+    static class RpcExecutorPool {
+
+        final BlockingQueue<RpcExecutor> cache;
+
+        final int size;
+
+        public RpcExecutorPool(int size) {
+            this.cache = new LinkedBlockingQueue<>(size);
+            //初始化
+            for (int i = 0; i < size; i++) {
+                this.cache.add(new RpcExecutor());
+            }
+            this.size = size;
+        }
+
+        public RpcExecutor poll(ServerCommand command, Stream stream, Message message, Session session) throws InterruptedException {
+            RpcExecutor executor = cache.poll(100, TimeUnit.MILLISECONDS);
+            executor.init(command, stream, message, session);
+            return executor;
+        }
+
+        public void offer(RpcExecutor ex) {
+            cache.offer(ex);
+        }
+    }
+
+    private void init(ServerCommand command, Stream stream, Message message, Session session) {
+        this.command = command;
+        this.stream = stream;
+        this.message = message;
+        this.session = session;
+    }
+
 }
