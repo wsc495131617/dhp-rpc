@@ -9,6 +9,6 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class RpcRequest implements IRpcRequest<RpcHeader>{
-    RpcHeader header;
+public class RpcRequest implements IRpcRequest<IRpcHeader>{
+    IRpcHeader header;
 }

@@ -41,7 +41,7 @@ public class RpcServerMethodManager implements IMethodManager{
         String methodName = method.getName();
         String className = method.getDeclaringClass().getName();
 
-        String commandName = className + ":" + methodName;
+        String commandName = org.dhp.common.utils.StringUtils.simplePackage(className + ":" + methodName);
         DMethod dm = method.getAnnotation(DMethod.class);
         //if defined Dmethod annotation, use dmethod to send
         if (dm != null && !StringUtils.isEmpty(dm.command())) {

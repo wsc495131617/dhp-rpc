@@ -1,6 +1,7 @@
 package org.dhp.common.utils;
 
 import java.math.BigDecimal;
+import java.util.StringJoiner;
 
 public class StringUtils {
 
@@ -168,5 +169,20 @@ public class StringUtils {
         if (i == str.length() && j == pattern.length())// 全部遍历完毕
             result = true;
         return result;
+    }
+    
+    /**
+     * 把 org.chzcb.test.Test 转化成 o.c.t.Test
+     * @param packageName
+     * @return
+     */
+    public static String simplePackage(String packageName) {
+        String[] arr = packageName.split("\\.");
+        String str = "";
+        for(int i=0;i<arr.length-1;i++) {
+            str += arr[i].charAt(0)+".";
+        }
+        str += arr[arr.length-1];
+        return str;
     }
 }

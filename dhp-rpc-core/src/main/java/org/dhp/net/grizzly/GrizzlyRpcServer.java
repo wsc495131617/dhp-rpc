@@ -60,7 +60,7 @@ public class GrizzlyRpcServer implements IRpcServer {
             }
             @Override
             public void shutdownForced() {
-                log.info("grizzly shutdown forced");
+                System.err.println("shutdown forced!");
             }
         });
         transport.start();

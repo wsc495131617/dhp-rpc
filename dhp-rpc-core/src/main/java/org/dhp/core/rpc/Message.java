@@ -20,17 +20,16 @@ public class Message {
             .name("rpc_requests_latency_nanoseconds")
             .help("rpc latency in nanoseconds.")
             .labelNames("type", "command", "status")
-            .buckets(new double[]{1, 10, 100, 1000, 10000, 100000, 1000000, 1000_000_0D,
-                    1000_000_00D, 1000_000_000D,
-                    2_000_000_000D,
-                    4_000_000_000D,
-                    6_000_000_000D,
-                    8_000_000_000D,
-                    10_000_000_000D,
-                    15_000_000_000D,
-                    20_000_000_000D,
-                    30_000_000_000D,
-                    60_000_000_000D
+            .buckets(new double[]{
+                    1000, // 1us
+                    10000, // 10us
+                    100000, // 100us
+                    1000000, // 1ms
+                    1000_000_0D, // 10ms
+                    1000_000_00D, // 100ms
+                    1000_000_000D, // 1s
+                    2_000_000_000D, // 2s
+                    5_000_000_000D
             })
             .register();
 

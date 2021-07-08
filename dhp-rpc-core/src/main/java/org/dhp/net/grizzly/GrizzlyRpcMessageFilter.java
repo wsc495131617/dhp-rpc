@@ -24,12 +24,12 @@ public class GrizzlyRpcMessageFilter extends BaseFilter {
         }
         //消息长度
         int len = buffer.getInt(0);
-        if (len > Message.MAX_PACKET_LEN) {
+        if (len > Message.MAX_PACKET_LEN || len < 0) {
             byte[] bytes = new byte[buffer.limit()];
             buffer.get(bytes);
             log.error("Buffer String：{}", new String(bytes));
             log.error("PeerAddress:{}", ((TCPNIOConnection) ctx.getConnection()).getPeerAddress());
-            log.error("Out of max packet len: {}，{} close {}!", len, buffer, ctx.getConnection());
+            log.error("Out of max packet len {}, cur {}，{} close {}!", Message.MAX_PACKET_LEN, len, buffer, ctx.getConnection());
             ctx.getConnection().close();
             return ctx.getStopAction();
         }

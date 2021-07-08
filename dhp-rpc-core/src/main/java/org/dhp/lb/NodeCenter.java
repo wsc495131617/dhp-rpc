@@ -42,13 +42,14 @@ public class NodeCenter implements Watcher {
 
     String currentPath;
 
-    CountDownLatch connectedSemaphore = new CountDownLatch(1);
+    CountDownLatch connectedSemaphore;
 
     ZooKeeper zk;
 
     @PostConstruct
     public void init() throws Exception {
         zk = new ZooKeeper(zkUrl, 5000, this);
+        connectedSemaphore = new CountDownLatch(1);
         connectedSemaphore.await();
         if (dhpProperties.getPort() > 0) {
             //创建集群根目录
@@ -68,7 +69,6 @@ public class NodeCenter implements Watcher {
                 for (String path : list) {
                     updateNextNode("/" + clusterName + "/" + path);
                 }
-                ;
             } catch (KeeperException e) {
                 e.printStackTrace();
             } catch (InterruptedException e) {
@@ -134,6 +134,7 @@ public class NodeCenter implements Watcher {
                 log.info("add next node: {}", node);
             }
         } catch (KeeperException | InterruptedException e) {
+            log.error("updateNextNode: {} error", path, e);
         }
     }
 
@@ -173,6 +174,11 @@ public class NodeCenter implements Watcher {
                         nodes.remove(node);
                     }
                 }
+            }
+        } else if(Event.KeeperState.Disconnected == watchedEvent.getState()) {
+            try {
+                this.init();
+            } catch (Exception e) {
             }
         }
     }
