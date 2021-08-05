@@ -8,17 +8,17 @@ import org.dhp.common.utils.JacksonUtil;
 import org.dhp.common.utils.LocalIPUtils;
 import org.dhp.common.utils.SystemInfoUtils;
 import org.dhp.core.rpc.Node;
+import org.dhp.core.rpc.RpcErrorCode;
+import org.dhp.core.rpc.RpcException;
 import org.dhp.core.spring.DhpProperties;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
+import org.springframework.core.env.Environment;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Vector;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -40,6 +40,9 @@ public class NodeCenter implements Watcher {
     @Resource
     DhpProperties dhpProperties;
 
+    @Resource
+    Environment environment;
+
     String currentPath;
 
     CountDownLatch connectedSemaphore;
@@ -55,14 +58,24 @@ public class NodeCenter implements Watcher {
             //创建集群根目录
             createPath("/" + clusterName, new byte[0], CreateMode.PERSISTENT, "create cluster path");
             //创建节点临时
-            current = new NodeStatus();
+            NodeStatus tmp = new NodeStatus();
             String host = (StringUtils.isEmpty(dhpProperties.getHost()) ? LocalIPUtils.resolveIp() : dhpProperties.getHost());
             currentPath = "/" + clusterName + "/" + dhpProperties.getName() + "_" + host + ":" + dhpProperties.getPort();
-            current.setName(dhpProperties.getName());
-            current.setPath(currentPath);
-            current.setHost(host);
-            current.setPort(dhpProperties.getPort());
-            createPath(currentPath, JacksonUtil.bean2JsonBytes(current), CreateMode.EPHEMERAL, "create node");
+            if (dhpProperties.getName() != null) {
+                tmp.setName(dhpProperties.getName());
+            } else {
+                String appName = environment.getProperty("spring.application.name");
+                if (appName != null) {
+                    tmp.setName(appName);
+                } else {
+                    throw new RpcException(RpcErrorCode.SYSTEM_ERROR);
+                }
+            }
+            tmp.setPath(currentPath);
+            tmp.setHost(host);
+            tmp.setPort(dhpProperties.getPort());
+            createPath(currentPath, JacksonUtil.bean2JsonBytes(tmp), CreateMode.EPHEMERAL, "create node");
+            current = tmp;
         } else {
             try {
                 List<String> list = zk.getChildren("/" + clusterName, false);
@@ -76,6 +89,16 @@ public class NodeCenter implements Watcher {
             }
         }
         zk.addWatch("/" + clusterName, this, AddWatchMode.PERSISTENT_RECURSIVE);
+        Thread t = new Thread(() -> {
+            while (true) {
+                try {
+                    updateNode();
+                    Thread.sleep(5000);
+                } catch (Exception e) {
+                }
+            }
+        });
+        t.start();
     }
 
     NodeStatus current;
@@ -83,7 +106,6 @@ public class NodeCenter implements Watcher {
     /**
      * 5s更新一次节点信息
      */
-    @Scheduled(fixedRate = 5000)
     public void updateNode() {
         if (current == null) {
             return;
@@ -93,7 +115,7 @@ public class NodeCenter implements Watcher {
         current.setTotalLoad((current.getCpuLoad() + current.getMemLoad()) / 2);
         try {
             zk.setData(currentPath, JacksonUtil.bean2JsonBytes(current), -1);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.error("update Zk Error");
         }
     }
@@ -102,9 +124,9 @@ public class NodeCenter implements Watcher {
         try {
             byte[] content = zk.getData(path, false, null);
             NodeStatus nodeStatus = JacksonUtil.bytes2Bean(content, NodeStatus.class);
-            List<Node> nodes = dhpProperties.getNodes();
+            Vector<Node> nodes = dhpProperties.getNodes();
             if (nodes == null) {
-                nodes = new ArrayList<>();
+                nodes = new Vector<>();
                 dhpProperties.setNodes(nodes);
             }
             boolean hasNode = false;
@@ -142,10 +164,15 @@ public class NodeCenter implements Watcher {
         zk.create(path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, mode, new AsyncCallback.StringCallback() {
             @Override
             public void processResult(int i, String s, Object o, String s1) {
+                CreateMode createMode = null;
+                try {
+                    createMode = CreateMode.fromFlag(i);
+                } catch (KeeperException e) {
+                }
                 if (i == 0) {
-                    log.info("{}, {}", o, s);
+                    log.info("{} {}, {}", createMode, o, s);
                 } else {
-                    log.info("{},{},{},{}", i, s, o, s1);
+                    log.info("{} {},{},{},{}", createMode, i, s, o, s1);
                 }
             }
         }, context);
@@ -169,17 +196,23 @@ public class NodeCenter implements Watcher {
                 if (nodes == null || nodes.isEmpty()) {
                     return;
                 }
+                HashSet<Node> deleteNodes = new HashSet<>();
                 for (Node node : nodes) {
                     if (node.getPath().equalsIgnoreCase(watchedEvent.getPath())) {
-                        nodes.remove(node);
+                        deleteNodes.add(node);
                     }
                 }
+                deleteNodes.forEach(nodes::remove);
+            } else {
+                log.info("watched other event: {}", watchedEvent);
             }
-        } else if(Event.KeeperState.Disconnected == watchedEvent.getState()) {
+        } else if (Event.KeeperState.Expired == watchedEvent.getState()) {
             try {
                 this.init();
             } catch (Exception e) {
             }
+        } else {
+            log.info("watched other event: {}", watchedEvent);
         }
     }
 }

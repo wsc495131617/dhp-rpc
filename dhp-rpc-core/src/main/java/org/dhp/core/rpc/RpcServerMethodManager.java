@@ -5,6 +5,8 @@ import org.dhp.common.annotation.DMethod;
 import org.dhp.common.annotation.DService;
 import org.dhp.common.rpc.StreamFuture;
 import org.dhp.core.spring.FrameworkException;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationListener;
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Method;
@@ -13,13 +15,14 @@ import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Server method org.chzcb.strategy.manager, store all method
  * @author zhangcb
  */
 @Slf4j
-public class RpcServerMethodManager implements IMethodManager{
+public class RpcServerMethodManager implements IMethodManager, ApplicationListener<ApplicationReadyEvent> {
 
     Map<String, ServerCommand> commands = new ConcurrentHashMap<>();
 
@@ -80,6 +83,19 @@ public class RpcServerMethodManager implements IMethodManager{
     }
 
     public ServerCommand getCommand(String command) {
+        try {
+            readyLock.await();
+        } catch (InterruptedException e) {
+            log.error("interrupted {}", e.getMessage(), e);
+        }
         return commands.get(command);
+    }
+
+    protected CountDownLatch readyLock = new CountDownLatch(1);
+
+    @Override
+    public void onApplicationEvent(ApplicationReadyEvent applicationReadyEvent) {
+        log.info("RpcServer is Ready!");
+        readyLock.countDown();
     }
 }

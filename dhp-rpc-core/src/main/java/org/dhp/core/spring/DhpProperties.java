@@ -6,6 +6,7 @@ import org.dhp.core.rpc.Node;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.List;
+import java.util.Vector;
 
 /**
  * @author zhangcb
@@ -19,5 +20,5 @@ public class DhpProperties {
     String host;
     int workThread;
     int timeout = 15000;
-    List<Node> nodes;
+    Vector<Node> nodes;
 }

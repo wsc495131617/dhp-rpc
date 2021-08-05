@@ -5,6 +5,7 @@ package org.dhp.core.rpc;
  * @author zhangcb
  */
 public enum RpcErrorCode {
+    SYSTEM_ERROR(400, "SYSTEM_ERROR"),
     COMMAND_NOT_FOUND(1000, "Command is not found, check method definition"),
     NODE_NOT_FOUND(1001, "Node is not found, check node configuration"),
     ILLEGAL_PARAMETER_DEFINITION(1002, "Illegal parameter definition"),
