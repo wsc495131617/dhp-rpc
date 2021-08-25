@@ -1,40 +1,30 @@
 package org.dhp.core.rpc;
 
+import io.prometheus.client.Gauge;
+import org.dhp.common.utils.Cast;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * @author zhangcb
  */
 public class Workers {
 
+    static Gauge rpcExecutorGuage = Gauge.build(
+            "rpc_executor_service_guage",
+            "rpc executor service 任务队列情况")
+            .labelNames("name", "type")
+            .register();
+
     static final Logger logger = LoggerFactory.getLogger(Workers.class);
-
-    /**
-     * 特定线程池，用于单独执行某一个功能号，当某个任务比较耗时的时候，就通过线程池进行统一分流，为了不影响主流的任务流
-     */
-    public static int COMMAND_POOL_SIZE = 20;
-
-    public static double COMMAND_MAX_RATE = 0.6;
-
-    /**
-     * 最大可接受的处理延迟，15秒，用于拒绝可能延迟过久的请求
-     */
-    public static double COMMAND_MAX_TIMEOUT = 15000;
 
     /**
      * 统一核心线程池，根据commandid%size进行分流
      */
     public static int CORE_POOL_SIZE = 8;
-    /**
-     * 通过属性路由的核心线程池
-     */
-    public static final int HASH_POOL_SIZE = 20;
 
     public static RpcExecutorService[] coreWorkers;
 
@@ -43,14 +33,37 @@ public class Workers {
     /**
      * 100 毫秒的延迟 就需要单独分离Worker处理，避免影响主线程。
      */
-    public static final double NEW_WORKER_THRESHOLD = 50;
-
-    public static final double POOL_WORKER_THRESHOLD = 30;
+    public static double NEW_WORKER_THRESHOLD = 50;
 
     /**
      * 超过20个就用worker执行
      */
     public static final double TMP_ELASTIC_COUNT = 20;
+
+    static {
+        //检查环境变量
+        String value = System.getenv("dhp.rpc.pool.size");
+        if (value != null) {
+            CORE_POOL_SIZE = Cast.toInteger(value);
+        }
+        value = System.getenv("dhp.worker.threshold.new");
+        if (value != null) {
+            NEW_WORKER_THRESHOLD = Cast.toDouble(value);
+        }
+        coreWorkers = new RpcExecutorService[CORE_POOL_SIZE];
+        Thread t = new Thread(() -> {
+            while (true) {
+                collect();
+                try {
+                    Thread.sleep(5000);
+                } catch (Exception e) {
+                }
+            }
+        });
+        t.setName("RpcMetrics");
+        t.setDaemon(true);
+        t.start();
+    }
 
     /**
      * 纯计算，可以使用同步锁，粒度足够小
@@ -59,9 +72,6 @@ public class Workers {
      * @return
      */
     public synchronized static RpcExecutorService getExecutorService(Message message) {
-        if (coreWorkers == null) {
-            coreWorkers = new RpcExecutorService[CORE_POOL_SIZE];
-        }
         String commandId = message.getCommand();
         int index = message.getId() % CORE_POOL_SIZE;
         // 假如命令专有线程，那么就直接用
@@ -72,6 +82,8 @@ public class Workers {
                 worker.stop();
                 logger.info("关闭：{}", worker);
                 commandWorkers.remove(commandId);
+                rpcExecutorGuage.remove(worker.getName(), "queue");
+                rpcExecutorGuage.remove(worker.getName(), "total");
             } else {
                 return worker;
             }
@@ -112,11 +124,24 @@ public class Workers {
     }
 
     public static RpcExecutorService createWorker(String name) {
-        RpcExecutorService worker = new RpcExecutorService();
+        RpcExecutorService worker = new RpcExecutorService(name);
         Thread t = new Thread(worker);
         t.setName(name);
         t.setDaemon(true);
         t.start();
         return worker;
+    }
+
+    static void collect() {
+        for (RpcExecutorService rpcExecutorService : coreWorkers) {
+            if(rpcExecutorService != null) {
+                rpcExecutorGuage.labels(rpcExecutorService.getName(), "queue").set(rpcExecutorService.getSize());
+                rpcExecutorGuage.labels(rpcExecutorService.getName(), "total").set(rpcExecutorService.getTotal());
+            }
+        }
+        for (RpcExecutorService rpcExecutorService : commandWorkers.values()) {
+            rpcExecutorGuage.labels(rpcExecutorService.getName(), "queue").set(rpcExecutorService.getSize());
+            rpcExecutorGuage.labels(rpcExecutorService.getName(), "total").set(rpcExecutorService.getTotal());
+        }
     }
 }

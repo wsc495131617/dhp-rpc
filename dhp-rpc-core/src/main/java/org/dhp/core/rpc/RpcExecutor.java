@@ -17,7 +17,10 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class RpcExecutor {
 
-    static RpcExecutorPool pool = new RpcExecutorPool(10);
+    /**
+     * 对象缓冲池
+     */
+    static RpcExecutorPool pool = new RpcExecutorPool(100);
 
     public static RpcExecutor create(ServerCommand command, Stream stream, Message message, Session session) throws InterruptedException {
         return pool.poll(command, stream, message, session);
@@ -152,12 +155,18 @@ public class RpcExecutor {
         }
 
         public RpcExecutor poll(ServerCommand command, Stream stream, Message message, Session session) throws InterruptedException {
+            if (cache.isEmpty()) {
+                return RpcExecutor.create(command, stream, message, session);
+            }
             RpcExecutor executor = cache.poll(100, TimeUnit.MILLISECONDS);
             executor.init(command, stream, message, session);
             return executor;
         }
 
         public void offer(RpcExecutor ex) {
+            if (cache.size() >= size) {
+                return;
+            }
             cache.offer(ex);
         }
     }

@@ -1,5 +1,6 @@
 package org.dhp.core.rpc;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
 
@@ -15,9 +16,16 @@ public class RpcExecutorService implements Runnable {
     protected final LinkedBlockingQueue<RpcExecutor> allTasks = new LinkedBlockingQueue<>();
     protected long liveTime;
 
-    public RpcExecutorService() {
+    @Getter
+    protected String name;
+
+    @Getter
+    int total = 0;
+
+    public RpcExecutorService(String name) {
         this.liveTime = System.currentTimeMillis();
         this.running = true;
+        this.name = name;
     }
 
     public boolean isOld(long time) {
@@ -44,7 +52,6 @@ public class RpcExecutorService implements Runnable {
 
     @Override
     public void run() {
-        log.info("start rpc executor service");
         //一直执行
         while (running || allTasks.size() > 0) {
             RpcExecutor task;
@@ -66,6 +73,7 @@ public class RpcExecutorService implements Runnable {
             try {
                 long st = System.nanoTime();
                 task.execute();
+                total++;
                 double cost = System.nanoTime() - st;
                 Double costAvg;
                 synchronized (commandCostList) {
