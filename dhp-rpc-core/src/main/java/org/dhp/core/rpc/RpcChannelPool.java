@@ -74,17 +74,22 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
         for (int index = randomIndex; index < len + randomIndex; index++) {
             RpcChannel channel = channels[index % len];
             if (channel == null) {
+                //每个Channel创建都需要指定node进行锁定
                 synchronized (node) {
-                    channel = new RpcChannelBuilder()
-                            .setHost(node.getHost())
-                            .setPort(node.getPort())
-                            .setName(node.getName())
-                            .setTimeout(node.getTimeout())
-                            .setType(properties.getType())
-                            .build();
-                    channel.start();
-                    channels[index % len] = channel;
-                    return channel;
+                    if(channels[index % len] == null) {
+                        channel = new RpcChannelBuilder()
+                                .setHost(node.getHost())
+                                .setPort(node.getPort())
+                                .setName(node.getName())
+                                .setTimeout(node.getTimeout())
+                                .setType(properties.getType())
+                                .build();
+                        channel.start();
+                        channels[index % len] = channel;
+                        return channel;
+                    } else {
+                        return channels[index % len];
+                    }
                 }
             }
             //在有连接可用的前提下，直接返回可用的channel
@@ -123,6 +128,7 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
                     //检查所有待关闭的channel，如果已经关闭的就移除，如果未活跃的连接，1分钟后关闭并移除
                     readyToCloseChannels.removeIf(rpcChannel -> {
                         if (rpcChannel.isClose()) {
+                            rpcChannel.close();
                             return true;
                         }
                         if (rpcChannel.activeTime < System.currentTimeMillis() - 600000) {

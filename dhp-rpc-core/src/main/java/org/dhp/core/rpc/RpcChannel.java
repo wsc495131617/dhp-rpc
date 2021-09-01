@@ -1,5 +1,6 @@
 package org.dhp.core.rpc;
 
+import io.prometheus.client.Gauge;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.SimpleStream;
@@ -20,6 +21,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 @Data
 public abstract class RpcChannel {
+
+    protected static Gauge rpcChannelPoolGuage = Gauge.build(
+            "rpc_channel_pool_guage",
+            "rpc连接池任务队列情况")
+            .labelNames("name", "endpoint", "type")
+            .register();
+
     String name;
     int port;
     String host;

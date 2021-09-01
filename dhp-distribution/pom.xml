@@ -57,7 +57,7 @@
         <dependency>
             <groupId>org.chzcb</groupId>
             <artifactId>dhp-rpc-common</artifactId>
-            <version>1.0.0</version>
+            <version>1.0.1</version>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
