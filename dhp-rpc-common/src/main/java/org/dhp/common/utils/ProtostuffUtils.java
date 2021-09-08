@@ -79,7 +79,7 @@ public class ProtostuffUtils {
         RuntimeSchema<T> schema;
         T newInstance;
 //        try {
-            schema = RuntimeSchema.createFrom(typeClass);
+            schema = getSchema(typeClass);
             newInstance = schema.newMessage();
             ProtostuffIOUtil.mergeFrom(source, newInstance, schema);
 //        } catch (Exception e) {
@@ -95,7 +95,7 @@ public class ProtostuffUtils {
         if(list == null || list.isEmpty()){
             return EMPTY;
         }
-        Schema<T> schema = (Schema<T>) RuntimeSchema.getSchema(list.get(0).getClass());
+        Schema<T> schema = (Schema<T>) getSchema(list.get(0).getClass());
         LinkedBuffer buffer = LinkedBuffer.allocate(1024*1024);
         byte[] protostuff = null;
         ByteArrayOutputStream byteArrayOutputStream = null;
@@ -114,7 +114,7 @@ public class ProtostuffUtils {
         if(bytes == null || bytes.length == 0){
             return null;
         }
-        Schema<T> schema = RuntimeSchema.getSchema(itemTypeClass);
+        Schema<T> schema = getSchema(itemTypeClass);
         List<T> result = null;
         try {
             result = ProtostuffIOUtil.parseListFrom(new ByteArrayInputStream(bytes), schema);
