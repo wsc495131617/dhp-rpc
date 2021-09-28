@@ -4,6 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.annotation.DMethod;
 import org.dhp.common.annotation.DService;
 import org.dhp.common.rpc.StreamFuture;
+import org.dhp.core.rpc.cmd.RpcCommand;
+import org.dhp.core.rpc.cmd.ServerRpcCommand;
 import org.dhp.core.spring.FrameworkException;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
@@ -32,6 +34,23 @@ public class RpcServerMethodManager implements IMethodManager, ApplicationListen
         DService dService = cls.getAnnotation(DService.class);
         for (Method method : methods) {
             addMethod(method, bean, cls);
+        }
+    }
+
+    public void addCommand(RpcCommand rpcCommand) {
+        log.info("Add command: {}", rpcCommand.name());
+        ServerRpcCommand command = new ServerRpcCommand();
+        command.setBean(rpcCommand);
+        command.setType(MethodType.Command);
+        command.setName(rpcCommand.name());
+        commands.put(command.getName(), command);
+
+        //属于
+        ParameterizedType parameterizedType = (ParameterizedType) rpcCommand.getClass().getGenericInterfaces()[0];
+        Type[] types = parameterizedType.getActualTypeArguments();
+        if(types.length == 2) {
+            command.setReqCls((Class<?>) types[0]);
+            command.setRespCls((Class<?>) types[1]);
         }
     }
 

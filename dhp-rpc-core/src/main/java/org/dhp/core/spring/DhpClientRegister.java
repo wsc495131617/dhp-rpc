@@ -105,7 +105,7 @@ public class DhpClientRegister implements ImportBeanDefinitionRegistrar,
         //添加RpcChannelPool
         BeanDefinition poolBeanDefinition = BeanDefinitionBuilder.rootBeanDefinition(RpcChannelPool.class).getBeanDefinition();
 
-        if(!"false".equalsIgnoreCase(environment.getProperty("dhp.lb.enable"))) {
+        if("true".equalsIgnoreCase(environment.getProperty("dhp.lb.enable"))) {
             //添加NodeCenter
             BeanDefinition nodeCenterBeanDefinition = BeanDefinitionBuilder.rootBeanDefinition(NodeCenter.class).getBeanDefinition();
             registry.registerBeanDefinition(nodeCenterBeanDefinition.getBeanClassName(), nodeCenterBeanDefinition);

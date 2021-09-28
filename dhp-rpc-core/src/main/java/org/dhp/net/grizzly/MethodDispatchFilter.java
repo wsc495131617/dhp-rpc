@@ -16,7 +16,7 @@ import java.io.IOException;
 @Slf4j
 public class MethodDispatchFilter extends BaseFilter {
     RpcServerMethodManager methodManager;
-    
+
     GrizzlySessionManager sessionManager;
     
     public MethodDispatchFilter(RpcServerMethodManager methodManager, GrizzlySessionManager sessionManager) {

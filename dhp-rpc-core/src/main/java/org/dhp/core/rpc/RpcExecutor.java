@@ -6,6 +6,8 @@ import org.dhp.common.rpc.Stream;
 import org.dhp.common.rpc.StreamFuture;
 import org.dhp.common.utils.JacksonUtil;
 import org.dhp.common.utils.ProtostuffUtils;
+import org.dhp.core.rpc.cmd.RpcCommand;
+import org.dhp.core.rpc.cmd.ServerRpcCommand;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
@@ -60,8 +62,8 @@ public class RpcExecutor {
             Message.requestLatency.labels("serverWrited", message.getCommand(), message.getStatus().name()).observe(System.nanoTime() - message.ts);
             return;
         }
-        Type[] paramTypes = command.getMethod().getParameterTypes();
         if (command.getType() == MethodType.Stream) {// call(req, stream<resp>)
+            Type[] paramTypes = command.getMethod().getParameterTypes();
             Object[] params;
             if (Stream.class.isAssignableFrom((Class<?>) paramTypes[0])) {
                 params = new Object[]{stream, ProtostuffUtils.deserialize(message.getData(), (Class<?>) paramTypes[1])};
@@ -85,24 +87,31 @@ public class RpcExecutor {
         } else {
             Object result = null;
             Throwable throwable = null;
-            try {
-                Object param = ProtostuffUtils.deserialize(message.getData(), (Class<?>) paramTypes[0]);
-                Message.requestLatency.labels("beforeServerInvoke", message.getCommand(), message.getStatus().name()).observe(System.nanoTime() - message.ts);
-                result = command.getMethod().invoke(command.getBean(), new Object[]{param});
-                Message.requestLatency.labels("serverInvoked", message.getCommand(), MessageStatus.Completed.name()).observe(System.nanoTime() - message.ts);
-            } catch (RuntimeException e) {
-                log.error(e.getMessage(), e);
-                throwable = e;
-            } catch (IllegalAccessException e) {
-                throwable = e;
-            } catch (InvocationTargetException e) {
-                Throwable cause = e.getCause();
-                if (cause != null) {
-                    log.error(cause.getMessage(), cause);
+            if (command.getType() == MethodType.Command) { // RpcCommand
+                RpcCommand rpcCommand = (RpcCommand) command.getBean();
+                ServerRpcCommand serverRpcCommand = (ServerRpcCommand) command;
+                result = rpcCommand.execute(ProtostuffUtils.deserialize(message.getData(), serverRpcCommand.getReqCls()));
+            } else {
+                Type[] paramTypes = command.getMethod().getParameterTypes();
+                try {
+                    Object param = ProtostuffUtils.deserialize(message.getData(), (Class<?>) paramTypes[0]);
+                    Message.requestLatency.labels("beforeServerInvoke", message.getCommand(), message.getStatus().name()).observe(System.nanoTime() - message.ts);
+                    result = command.getMethod().invoke(command.getBean(), new Object[]{param});
+                    Message.requestLatency.labels("serverInvoked", message.getCommand(), MessageStatus.Completed.name()).observe(System.nanoTime() - message.ts);
+                } catch (RuntimeException e) {
+                    log.error(e.getMessage(), e);
+                    throwable = e;
+                } catch (IllegalAccessException e) {
+                    throwable = e;
+                } catch (InvocationTargetException e) {
+                    Throwable cause = e.getCause();
+                    if (cause != null) {
+                        log.error(cause.getMessage(), cause);
+                    }
+                    throwable = cause;
                 }
-                throwable = cause;
             }
-            if (command.getType() == MethodType.Default || command.getType() == MethodType.List) {// resp call(req)
+            if (command.getType() == MethodType.Default || command.getType() == MethodType.List || command.getType() == MethodType.Command) {// resp call(req)
                 if (throwable != null) {
                     message.setStatus(MessageStatus.Failed);
                     message.setData(MethodDispatchUtils.dealFailed(command, throwable));

@@ -95,6 +95,7 @@ public class NodeCenter implements Watcher {
                     updateNode();
                     Thread.sleep(5000);
                 } catch (Exception e) {
+                    log.error("updateNode error", e);
                 }
             }
         });

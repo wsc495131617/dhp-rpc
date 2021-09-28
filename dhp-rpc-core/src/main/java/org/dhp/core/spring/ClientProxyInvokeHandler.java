@@ -242,7 +242,7 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
      * @return
      */
     protected Integer sendMessage(Command command, byte[] argBody, Stream<Message> stream) {
-        RpcChannel channel = channelPool.getChannel(command);
+        RpcChannel channel = channelPool.getChannel(command.getNodeName());
         return channel.write(command.getName(), argBody, stream);
     }
 

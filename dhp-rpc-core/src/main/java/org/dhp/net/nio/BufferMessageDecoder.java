@@ -41,7 +41,7 @@ public class BufferMessageDecoder extends MessageDecoder {
                     position += remaining;
                     buffer.position(position);
 
-                    NioMessage msg = new NioMessage(msgBuf.toByteBuffer());
+                    NioMessage msg = new BufferNioMessage(msgBuf);
                     list.add(msg);
                     //重置，粘包处理
                     msgBuf.dispose();

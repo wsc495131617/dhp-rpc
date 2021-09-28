@@ -1,7 +1,6 @@
 package org.dhp.core.rpc;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.RandomUtils;
 import org.dhp.core.spring.DhpProperties;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
@@ -34,12 +33,12 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
         return allChannels;
     }
 
-    protected Node getNode(Command command) {
+    protected Node getNode(String nodeName) {
         TreeSet<Node> nodes = new TreeSet<>();
-        if (command.getNodeName() != null && properties.getNodes() != null) {
+        if (nodeName != null && properties.getNodes() != null) {
             for (Node node : properties.getNodes()) {
                 //如果
-                if (node.getName().equals(command.getNodeName())) {
+                if (node.getName().equals(nodeName)) {
                     nodes.add(node);
                 }
             }
@@ -50,11 +49,11 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
     /**
      * 需要确保并发有效
      *
-     * @param command
+     * @param nodeName
      * @return
      */
-    public RpcChannel getChannel(Command command) {
-        Node node = getNode(command);
+    public RpcChannel getChannel(String nodeName) {
+        Node node = getNode(nodeName);
         if (node == null) {
             throw new RpcException(RpcErrorCode.NODE_NOT_FOUND);
         }
@@ -70,13 +69,14 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
             channels = allChannels.get(node);
         }
         int len = channels.length;
-        int randomIndex = RandomUtils.nextInt(0, len);
+//        int randomIndex = RandomUtils.nextInt(0, len);
+        int randomIndex = 0;
         for (int index = randomIndex; index < len + randomIndex; index++) {
             RpcChannel channel = channels[index % len];
             if (channel == null) {
                 //每个Channel创建都需要指定node进行锁定
                 synchronized (node) {
-                    if(channels[index % len] == null) {
+                    if (channels[index % len] == null) {
                         channel = new RpcChannelBuilder()
                                 .setHost(node.getHost())
                                 .setPort(node.getPort())
