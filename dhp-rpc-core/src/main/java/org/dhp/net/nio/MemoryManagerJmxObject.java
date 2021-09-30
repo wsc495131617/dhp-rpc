@@ -1,5 +1,6 @@
 package org.dhp.net.nio;
 
+import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
 import org.glassfish.gmbal.GmbalMBean;
 import org.glassfish.gmbal.ManagedObject;
@@ -10,6 +11,12 @@ import org.glassfish.grizzly.monitoring.jmx.JmxObject;
 @Slf4j
 @ManagedObject
 public class MemoryManagerJmxObject extends JmxObject {
+
+    static Gauge nioMemoryGauge = Gauge.build(
+            "nio_memory_guage",
+            "Nio Memory 内存使用情况")
+            .labelNames("allocateType")
+            .register();
 
     MemoryProbe memoryProbe = new MemoryProbe();
 
@@ -38,17 +45,17 @@ public class MemoryManagerJmxObject extends JmxObject {
 
         @Override
         public void onBufferAllocateEvent(int size) {
-            log.debug("onBufferAllocateEvent: {}", size);
+            nioMemoryGauge.labels("real").inc(size);
         }
 
         @Override
         public void onBufferAllocateFromPoolEvent(int size) {
-//            log.info("onBufferAllocateFromPoolEvent: {}", size);
+            nioMemoryGauge.labels("pool").inc(size);
         }
 
         @Override
         public void onBufferReleaseToPoolEvent(int size) {
-//            log.info("onBufferReleaseToPoolEvent: {}", size);
+            nioMemoryGauge.labels("pool").dec(size);
         }
     }
 
