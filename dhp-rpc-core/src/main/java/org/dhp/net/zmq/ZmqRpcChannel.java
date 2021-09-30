@@ -6,7 +6,6 @@ import org.dhp.core.rpc.ClientStreamManager;
 import org.dhp.core.rpc.Message;
 import org.dhp.core.rpc.MessageStatus;
 import org.dhp.core.rpc.RpcChannel;
-import org.dhp.net.nio.BufferMessageDecoder;
 import org.dhp.net.nio.MessageDecoder;
 import org.zeromq.SocketType;
 import org.zeromq.ZContext;
@@ -37,7 +36,7 @@ public class ZmqRpcChannel extends RpcChannel {
     @Override
     public void start() {
         try {
-            messageDecoder = new BufferMessageDecoder(256);
+            messageDecoder = new MessageDecoder(256);
             streamManager = new ClientStreamManager();
             connect();
         } catch (TimeoutException e) {

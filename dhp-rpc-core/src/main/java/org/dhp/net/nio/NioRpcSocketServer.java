@@ -1,9 +1,8 @@
 package org.dhp.net.nio;
 
 import lombok.extern.slf4j.Slf4j;
-import org.dhp.common.rpc.Stream;
-import org.dhp.common.utils.ProtostuffUtils;
-import org.dhp.core.rpc.*;
+import org.dhp.core.rpc.IRpcServer;
+import org.dhp.core.rpc.RpcServerMethodManager;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -12,21 +11,33 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
 
 @Slf4j
 public class NioRpcSocketServer implements IRpcServer, Runnable {
 
     int port;
     int workThread;
+    //boss Selector 主要负责accept
     Selector selector;
+
+    //IO 线程 负责read
+    NioSelectorThread[] selectorThreads;
+
+    //acceptCount
+    int acceptCount = 0;
+
     ServerSocketChannel serverSocketChannel;
     NioSessionManager sessionManager;
     RpcServerMethodManager methodManager;
 
+    LinkedBlockingQueue<SocketChannel> acceptQueue = new LinkedBlockingQueue<>();
+
     public NioRpcSocketServer(int port, int workThread) {
         this.port = port;
+        if(workThread <= 0) {
+            workThread = 4;
+        }
         this.workThread = workThread;
         this.sessionManager = new NioSessionManager();
     }
@@ -40,6 +51,18 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
         selector = Selector.open();
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
         log.info("start at {}", port);
+        //开启IO线程
+        selectorThreads = new NioSelectorThread[workThread];
+        for (int i = 0; i < workThread; i++) {
+            NioSelectorThread nioSelectorThread = new NioSelectorThread(acceptQueue);
+            nioSelectorThread.sessionManager = sessionManager;
+            nioSelectorThread.methodManager = methodManager;
+            nioSelectorThread.setName("NioSelector-" + i);
+            nioSelectorThread.setDaemon(true);
+            nioSelectorThread.start();
+            selectorThreads[i] = nioSelectorThread;
+        }
+
         //开启主循环
         Thread mainThread = new Thread(this);
         mainThread.setName("NioMainLoop");
@@ -54,24 +77,11 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
                 Iterator<SelectionKey> it = selector.selectedKeys().iterator();
                 while (it.hasNext()) {
                     SelectionKey key = it.next();
-                    it.remove();
                     //新进入连接
                     if (key.isAcceptable()) {
-                        SocketChannel socket = serverSocketChannel.accept();
-                        socket.configureBlocking(false);
-                        //注册
-                        socket.register(selector, SelectionKey.OP_READ);
-                        addChannel(socket);
-                    }
-                    if (key.isReadable()) {
-                        SocketChannel socket = (SocketChannel) key.channel();
-                        if (!readChannel(socket)) {
-                            key.cancel();
-                            continue;
-                        }
-                    }
-                    if (key.isWritable()) {
-                        log.info("write:{}", key.channel());
+                        SocketChannel client = serverSocketChannel.accept();
+                        addClient(client);
+                        it.remove();
                     }
                 }
             } catch (IOException e) {
@@ -80,49 +90,13 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
         }
     }
 
-    protected void addChannel(SocketChannel socketChannel) {
-        NioSession session = (NioSession) sessionManager.getSession(socketChannel);
-        session.setMessageDecoder(new BufferMessageDecoder(256));
-    }
-
-    //读取连接数据
-    protected boolean readChannel(SocketChannel socket) {
+    protected void addClient(SocketChannel client) {
         try {
-            NioSession session = (NioSession) sessionManager.getSession(socket);
-            //socket 读取 bytes到session里面
-            List<NioMessage> messages = new LinkedList<>();
-            if (!session.getMessageDecoder().read(socket, messages)) {
-                session.destroy();
-                return false;
-            }
-            for (NioMessage message : messages) {
-                dealMessage(session, message);
-            }
-        } catch (Throwable e) {
-            log.error(e.getLocalizedMessage(), e);
+            client.configureBlocking(false);
+            acceptQueue.add(client);
+            selectorThreads[acceptCount++%workThread].selector.wakeup();
+        } catch (IOException e) {
         }
-        return true;
-
-    }
-
-    protected void dealMessage(NioSession session, NioMessage message) {
-        if (!session.isRegister()) {
-            if (message.getCommand().equalsIgnoreCase("register")) {
-                session.setId(ProtostuffUtils.deserialize(message.getData(), Long.class));
-                if (sessionManager.register(session)) {
-                    message.setStatus(MessageStatus.Completed);
-                } else {
-                    message.setStatus(MessageStatus.Failed);
-                }
-                session.write(message);
-            } else {
-                log.warn("收到未注册消息，丢弃: {}, 并关闭: {}", message, session);
-            }
-            return;
-        }
-        ServerCommand command = methodManager.getCommand(message.getCommand());
-        Stream stream = new NioStream(session.getId(), command, message);
-        Workers.getExecutorService(message).execute(command, stream, message, session);
     }
 
     @Override
@@ -135,58 +109,4 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
 
     }
 
-    class NioStream<T> implements Stream<T> {
-
-        Long sessionId;
-        ServerCommand command;
-        Message message;
-
-        public NioStream(Long sessionId, ServerCommand command, Message message) {
-            this.sessionId = sessionId;
-            this.command = command;
-            this.message = message;
-        }
-
-        public void onCanceled() {
-            NioMessage retMessage = new NioMessage();
-            retMessage.setId(message.getId());
-            retMessage.setStatus(MessageStatus.Canceled);
-            retMessage.setMetadata(message.getMetadata());
-            retMessage.setCommand(command.getName());
-            Session session = sessionManager.getSessionById(sessionId);
-            session.write(retMessage);
-        }
-
-        public void onNext(Object value) {
-            NioMessage retMessage = new NioMessage();
-            retMessage.setId(message.getId());
-            retMessage.setStatus(MessageStatus.Updating);
-            retMessage.setCommand(command.getName());
-            retMessage.setMetadata(message.getMetadata());
-            retMessage.setData(MethodDispatchUtils.dealResult(command, value));
-            Session session = sessionManager.getSessionById(sessionId);
-            session.write(retMessage);
-        }
-
-        public void onFailed(Throwable throwable) {
-            NioMessage retMessage = new NioMessage();
-            retMessage.setId(message.getId());
-            retMessage.setStatus(MessageStatus.Failed);
-            retMessage.setCommand(command.getName());
-            retMessage.setData(MethodDispatchUtils.dealFailed(command, throwable));
-            retMessage.setMetadata(message.getMetadata());
-            Session session = sessionManager.getSessionById(sessionId);
-            session.write(retMessage);
-        }
-
-        public void onCompleted() {
-            NioMessage retMessage = new NioMessage();
-            retMessage.setId(message.getId());
-            retMessage.setStatus(MessageStatus.Completed);
-            retMessage.setMetadata(message.getMetadata());
-            retMessage.setCommand(command.getName());
-            Session session = sessionManager.getSessionById(sessionId);
-            session.write(retMessage);
-        }
-    }
 }

@@ -71,7 +71,7 @@ public class NioRpcChannel extends RpcChannel {
     @Override
     public void start() {
         try {
-            messageDecoder = new BufferMessageDecoder(256);
+            messageDecoder = new MessageDecoder(4096);
             streamManager = new ClientStreamManager();
             connect();
         } catch (TimeoutException e) {
@@ -145,7 +145,7 @@ public class NioRpcChannel extends RpcChannel {
         message.setCommand(command);
         message.setData(body);
         message.setStatus(MessageStatus.Sending);
-        this.socketChannel.write(message.pack());
+        this.socketChannel.write(message.pack().toByteBuffer());
         return message;
     }
 

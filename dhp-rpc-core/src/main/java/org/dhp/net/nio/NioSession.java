@@ -1,15 +1,22 @@
 package org.dhp.net.nio;
 
 import org.dhp.core.rpc.Message;
+import org.dhp.core.rpc.RpcErrorCode;
+import org.dhp.core.rpc.RpcException;
 import org.dhp.core.rpc.Session;
+import org.glassfish.grizzly.Buffer;
 
 import java.io.IOException;
 import java.nio.channels.SocketChannel;
 
+/**
+ * 缓存Session的写缓存
+ */
 public class NioSession extends Session {
-    SocketChannel channel;
 
     MessageDecoder messageDecoder;
+
+    SocketChannel channel;
 
     public NioSession(SocketChannel channel) {
         this.channel = channel;
@@ -25,9 +32,11 @@ public class NioSession extends Session {
 
     @Override
     public void write(Message message) {
+        Buffer buf = ((NioMessage) message).pack();
         try {
-            channel.write(((NioMessage) message).pack());
-        }catch (IOException e){
+            channel.write(buf.toByteBuffer());
+        } catch (IOException e) {
+            throw new RpcException(RpcErrorCode.SYSTEM_ERROR);
         }
     }
 
@@ -35,5 +44,12 @@ public class NioSession extends Session {
     public void destroy() {
         super.destroy();
         this.messageDecoder.destroy();
+    }
+
+    @Override
+    public String toString() {
+        return "NioSession{" +
+                "channel=" + channel +
+                '}';
     }
 }

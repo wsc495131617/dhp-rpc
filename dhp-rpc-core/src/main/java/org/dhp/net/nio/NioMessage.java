@@ -4,6 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.dhp.core.rpc.Message;
 import org.dhp.core.rpc.MessageStatus;
 import org.dhp.core.rpc.MetaData;
+import org.glassfish.grizzly.Buffer;
+import org.glassfish.grizzly.utils.BufferOutputStream;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -13,14 +15,14 @@ import java.util.Map;
 @Slf4j
 public class NioMessage extends Message {
 
-    public NioMessage(ByteBuffer buffer) {
+    public NioMessage(Buffer buffer) {
         this.unpack(buffer);
     }
     public NioMessage() {
 
     }
 
-    String readString(ByteBuffer buf) {
+    String readString(Buffer buf) {
         int len = buf.get();
         byte[] bytes = new byte[len];
         buf.get(bytes);
@@ -39,31 +41,43 @@ public class NioMessage extends Message {
         return len + 1;
     }
 
-    protected void unpack(ByteBuffer byteBuffer) {
-        byteBuffer.position(0);
-        int packLen = byteBuffer.getInt();
+    int writeString(BufferOutputStream outputStream, String command) {
+        byte[] bytes = command.getBytes();
+        int len = bytes.length;
+        try {
+            outputStream.write((byte) len);
+            outputStream.write(bytes);
+        } catch (IOException e) {
+            log.error(e.getMessage(), e);
+        }
+        return len + 1;
+    }
+
+    protected void unpack(Buffer buffer) {
+        buffer.position(0);
+        int packLen = buffer.getInt();
         this.setLength(packLen);
-        this.setId(byteBuffer.getInt());
-        this.setStatus(MessageStatus.values()[byteBuffer.get()]);
-        this.setCommand(readString(byteBuffer));
+        this.setId(buffer.getInt());
+        this.setStatus(MessageStatus.values()[buffer.get()]);
+        this.setCommand(readString(buffer));
         //metadata
-        int headLen = byteBuffer.get();
+        int headLen = buffer.get();
         if (headLen > 0) {
             MetaData metaData = new MetaData();
             for (int i = 0; i < headLen; i++) {
-                int metadataId = byteBuffer.getInt();
-                String metdataValue = readString(byteBuffer);
+                int metadataId = buffer.getInt();
+                String metdataValue = readString(buffer);
                 metaData.add(metadataId, metdataValue);
             }
             this.setMetadata(metaData);
         }
-        byte[] bytes = new byte[byteBuffer.remaining()];
-        byteBuffer.get(bytes);
+        byte[] bytes = new byte[buffer.remaining()];
+        buffer.get(bytes);
         this.setData(bytes);
     }
 
-    public ByteBuffer pack() {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    public Buffer pack() {
+        BufferOutputStream outputStream = new BufferOutputStream(MessageDecoder.memoryManager);
         int headLen = writeString(outputStream, getCommand());
         MetaData metadata = getMetadata();
         if (metadata != null) {
@@ -103,14 +117,17 @@ public class NioMessage extends Message {
             bodyLen = this.getData().length;
         }
         int length = headLen + bodyLen + HEAD_LEN;
-        ByteBuffer buffer = ByteBuffer.allocateDirect(length);
+        Buffer buffer = MessageDecoder.memoryManager.allocate(length);
         buffer.putInt(length);
         buffer.putInt(this.getId());
         buffer.put((byte)(this.getStatus().getId()));
-        buffer.put(outputStream.toByteArray());
+        Buffer headBuffer = outputStream.getBuffer();
+        headBuffer.flip();
+        buffer.put(headBuffer.array(), headBuffer.arrayOffset(), headBuffer.limit());
         if (data != null)
             buffer.put(data);
         buffer.flip();
         return buffer;
     }
+
 }

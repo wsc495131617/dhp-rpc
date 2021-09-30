@@ -64,6 +64,6 @@ public abstract class Session {
             streamFuture.cancel(false);
         });
         futures.clear();
-        log.info("create session {}", this);
+        log.info("destroy session {}", this);
     }
 }
