@@ -37,6 +37,8 @@ public class NioSession extends Session {
             channel.write(buf.toByteBuffer());
         } catch (IOException e) {
             throw new RpcException(RpcErrorCode.SYSTEM_ERROR);
+        } finally {
+            buf.dispose();
         }
     }
 

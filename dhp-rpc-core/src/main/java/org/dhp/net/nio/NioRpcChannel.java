@@ -3,6 +3,7 @@ package org.dhp.net.nio;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
 import org.dhp.core.rpc.*;
+import org.glassfish.grizzly.Buffer;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -71,7 +72,7 @@ public class NioRpcChannel extends RpcChannel {
     @Override
     public void start() {
         try {
-            messageDecoder = new MessageDecoder(4096);
+            messageDecoder = new MessageDecoder(2048);
             streamManager = new ClientStreamManager();
             connect();
         } catch (TimeoutException e) {
@@ -145,7 +146,9 @@ public class NioRpcChannel extends RpcChannel {
         message.setCommand(command);
         message.setData(body);
         message.setStatus(MessageStatus.Sending);
-        this.socketChannel.write(message.pack().toByteBuffer());
+        Buffer buffer = message.pack();
+        this.socketChannel.write(buffer.toByteBuffer());
+        buffer.dispose();
         return message;
     }
 

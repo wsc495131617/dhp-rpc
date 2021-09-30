@@ -3,6 +3,7 @@ package org.dhp.net.nio;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.core.rpc.IRpcServer;
 import org.dhp.core.rpc.RpcServerMethodManager;
+import org.glassfish.grizzly.jmxbase.GrizzlyJmxManager;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -67,6 +68,11 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
         Thread mainThread = new Thread(this);
         mainThread.setName("NioMainLoop");
         mainThread.start();
+
+        //增加监控
+        GrizzlyJmxManager jmxManager = GrizzlyJmxManager.instance();
+        Object jmxMemoryManagerObject = MessageDecoder.memoryManager.getMonitoringConfig().createManagementObject();
+        jmxManager.registerAtRoot(jmxMemoryManagerObject, "nio_memory");
     }
 
     @Override

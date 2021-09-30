@@ -13,7 +13,13 @@ import java.util.List;
 @Slf4j
 public class MessageDecoder {
 
-    static MemoryManager memoryManager = new PooledMemoryManager();
+    //HeapMemoryManager 因为需要线程池支持缓存，所以没用grizzly框架就不能用HeapMemoryManager
+    static MemoryManager memoryManager = new PooledMemoryManager(){
+        @Override
+        protected Object createJmxManagementObject() {
+            return new MemoryManagerJmxObject(this);
+        }
+    };
 
     protected ByteBuffer buffer;
 

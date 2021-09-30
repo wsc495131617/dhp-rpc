@@ -5,11 +5,8 @@ import org.dhp.core.rpc.Message;
 import org.dhp.core.rpc.MessageStatus;
 import org.dhp.core.rpc.MetaData;
 import org.glassfish.grizzly.Buffer;
-import org.glassfish.grizzly.utils.BufferOutputStream;
+import org.glassfish.grizzly.memory.CompositeBuffer;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Map;
 
 @Slf4j
@@ -18,6 +15,7 @@ public class NioMessage extends Message {
     public NioMessage(Buffer buffer) {
         this.unpack(buffer);
     }
+
     public NioMessage() {
 
     }
@@ -29,27 +27,14 @@ public class NioMessage extends Message {
         return new String(bytes);
     }
 
-    int writeString(ByteArrayOutputStream outputStream, String command) {
+    int writeString(CompositeBuffer headBuffer, String command) {
         byte[] bytes = command.getBytes();
         int len = bytes.length;
-        try {
-            outputStream.write((byte) len);
-            outputStream.write(bytes);
-        } catch (IOException e) {
-            log.error(e.getMessage(), e);
-        }
-        return len + 1;
-    }
-
-    int writeString(BufferOutputStream outputStream, String command) {
-        byte[] bytes = command.getBytes();
-        int len = bytes.length;
-        try {
-            outputStream.write((byte) len);
-            outputStream.write(bytes);
-        } catch (IOException e) {
-            log.error(e.getMessage(), e);
-        }
+        Buffer buffer = MessageDecoder.memoryManager.allocate(len + 1);
+        buffer.put((byte) len);
+        buffer.put(bytes);
+        buffer.trim();
+        headBuffer.append(buffer);
         return len + 1;
     }
 
@@ -77,37 +62,30 @@ public class NioMessage extends Message {
     }
 
     public Buffer pack() {
-        BufferOutputStream outputStream = new BufferOutputStream(MessageDecoder.memoryManager);
-        int headLen = writeString(outputStream, getCommand());
+        CompositeBuffer headBuffer = CompositeBuffer.newBuffer(MessageDecoder.memoryManager);
+        int headLen = writeString(headBuffer, getCommand());
         MetaData metadata = getMetadata();
         if (metadata != null) {
             int len = 1;
             Map<Integer, String> data = metadata.getData();
-            try {
-                outputStream.write(data.size());
-                for (Integer key : data.keySet()) {
-                    ByteBuffer keyBuf = ByteBuffer.allocate(4);
-                    keyBuf.putInt(key);
-                    outputStream.write(keyBuf.array());
-                    len += 4;
-                    byte[] bytes = data.get(key).getBytes();
-                    outputStream.write(bytes.length);
-                    len += 1;
-                    outputStream.write(bytes);
-                    len += bytes.length;
-                }
-                outputStream.flush();
-                headLen += len;
-            } catch (IOException e) {
-                e.printStackTrace();
+            Buffer buffer = MessageDecoder.memoryManager.allocate(1);
+            buffer.put((byte) data.size());
+            buffer.trim();
+            headBuffer.append(buffer);
+            for (Integer key : data.keySet()) {
+                byte[] bytes = data.get(key).getBytes();
+                buffer = MessageDecoder.memoryManager.allocate(5 + bytes.length);
+                buffer.putInt(key);
+                buffer.put((byte) bytes.length);
+                buffer.put(bytes);
+                len += 5 + bytes.length;
             }
+            headLen += len;
         } else {
-            try {
-                outputStream.write((byte) -1);
-                outputStream.flush();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            Buffer buffer = MessageDecoder.memoryManager.allocate(1);
+            buffer.put((byte) -1);
+            buffer.trim();
+            headBuffer.append(buffer);
             headLen++;
         }
 
@@ -120,10 +98,9 @@ public class NioMessage extends Message {
         Buffer buffer = MessageDecoder.memoryManager.allocate(length);
         buffer.putInt(length);
         buffer.putInt(this.getId());
-        buffer.put((byte)(this.getStatus().getId()));
-        Buffer headBuffer = outputStream.getBuffer();
-        headBuffer.flip();
-        buffer.put(headBuffer.array(), headBuffer.arrayOffset(), headBuffer.limit());
+        buffer.put((byte) (this.getStatus().getId()));
+        buffer.put(headBuffer);
+        headBuffer.dispose();
         if (data != null)
             buffer.put(data);
         buffer.flip();
