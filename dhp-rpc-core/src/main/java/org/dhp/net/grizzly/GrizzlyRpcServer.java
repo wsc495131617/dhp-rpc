@@ -3,10 +3,12 @@ package org.dhp.net.grizzly;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.core.rpc.IRpcServer;
 import org.dhp.core.rpc.RpcServerMethodManager;
+import org.dhp.net.nio.MessageDecoder;
 import org.glassfish.grizzly.GracefulShutdownListener;
 import org.glassfish.grizzly.ShutdownContext;
 import org.glassfish.grizzly.filterchain.FilterChainBuilder;
 import org.glassfish.grizzly.filterchain.TransportFilter;
+import org.glassfish.grizzly.jmxbase.GrizzlyJmxManager;
 import org.glassfish.grizzly.nio.transport.TCPNIOTransport;
 import org.glassfish.grizzly.nio.transport.TCPNIOTransportBuilder;
 import org.glassfish.grizzly.strategies.SameThreadIOStrategy;
@@ -73,6 +75,11 @@ public class GrizzlyRpcServer implements IRpcServer {
         awaitThread.setContextClassLoader(this.getClass().getClassLoader());
         awaitThread.setDaemon(false);
         awaitThread.start();
+
+        //增加监控
+        GrizzlyJmxManager jmxManager = GrizzlyJmxManager.instance();
+        Object jmxMemoryManagerObject = MessageDecoder.memoryManager.getMonitoringConfig().createManagementObject();
+        jmxManager.registerAtRoot(jmxMemoryManagerObject, "grizzly_memory");
     }
 
     @Override

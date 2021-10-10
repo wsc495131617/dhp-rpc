@@ -41,6 +41,7 @@ public class GrizzlyRpcMessageFilter extends BaseFilter {
             try {
                 GrizzlyMessage msg = new GrizzlyMessage(buffer);
                 ctx.setMessage(msg);
+                buffer.tryDispose();
             } catch (Exception e) {
                 log.error(e.getMessage(), e);
                 if (remain != null) {
@@ -62,6 +63,7 @@ public class GrizzlyRpcMessageFilter extends BaseFilter {
         GrizzlyMessage message = ctx.getMessage();
         Buffer buffer = message.pack();
         ctx.write(buffer);
+        buffer.tryDispose();
         return ctx.getStopAction();
     }
 }

@@ -1,47 +1,60 @@
 package org.dhp.net.grizzly;
 
+import lombok.extern.slf4j.Slf4j;
 import org.dhp.core.rpc.Message;
 import org.dhp.core.rpc.MessageStatus;
 import org.dhp.core.rpc.MetaData;
+import org.dhp.net.nio.MemoryManagerJmxObject;
 import org.glassfish.grizzly.Buffer;
-import org.glassfish.grizzly.memory.HeapBuffer;
+import org.glassfish.grizzly.memory.CompositeBuffer;
+import org.glassfish.grizzly.memory.HeapMemoryManager;
 import org.glassfish.grizzly.memory.MemoryManager;
 
 import java.util.Map;
 
-/**
- * @author zhangcb
- */
+@Slf4j
 public class GrizzlyMessage extends Message {
 
-    public GrizzlyMessage() {
-    }
+    //HeapMemoryManager 因为需要线程池支持缓存，所以没用grizzly框架就不能用HeapMemoryManager
+    public static MemoryManager memoryManager = new HeapMemoryManager(){
+        @Override
+        protected Object createJmxManagementObject() {
+            return new MemoryManagerJmxObject(this);
+        }
+    };
 
     public GrizzlyMessage(Buffer buffer) {
         this.unpack(buffer);
     }
 
-    String readString(Buffer buffer) {
-        int commandLen = buffer.get();
-        byte[] bytes = new byte[commandLen];
-        buffer.get(bytes);
+    public GrizzlyMessage() {
+
+    }
+
+    String readString(Buffer buf) {
+        int len = buf.get();
+        byte[] bytes = new byte[len];
+        buf.get(bytes);
         return new String(bytes);
     }
 
-    int writeString(GrizzlyOutputStream outputStream, String value) {
-        byte[] bytes = value.getBytes();
-        outputStream.writeByte(bytes.length);
-        outputStream.writeBuffer(HeapBuffer.wrap(bytes));
-        return bytes.length + 1;
+    int writeString(CompositeBuffer headBuffer, String command) {
+        byte[] bytes = command.getBytes();
+        int len = bytes.length;
+        Buffer buffer = memoryManager.allocate(len + 1);
+        buffer.put((byte) len);
+        buffer.put(bytes);
+        buffer.trim();
+        headBuffer.append(buffer);
+        return len + 1;
     }
 
-    public void unpack(Buffer buffer) {
-        int startPos = buffer.position();
+    protected void unpack(Buffer buffer) {
+        buffer.position(0);
         int packLen = buffer.getInt();
         this.setLength(packLen);
         this.setId(buffer.getInt());
         this.setStatus(MessageStatus.values()[buffer.get()]);
-        //找到对应的commandName
         this.setCommand(readString(buffer));
         //metadata
         int headLen = buffer.get();
@@ -54,48 +67,57 @@ public class GrizzlyMessage extends Message {
             }
             this.setMetadata(metaData);
         }
-        int headPos = buffer.position();
-        byte[] bytes = new byte[packLen - headPos + startPos];
+        byte[] bytes = new byte[buffer.remaining()];
         buffer.get(bytes);
         this.setData(bytes);
     }
 
     public Buffer pack() {
-        GrizzlyOutputStream outputStream = new GrizzlyOutputStream();
-        int headLen = writeString(outputStream, getCommand());
+        CompositeBuffer headBuffer = CompositeBuffer.newBuffer(memoryManager);
+        int headLen = writeString(headBuffer, getCommand());
         MetaData metadata = getMetadata();
         if (metadata != null) {
             int len = 1;
             Map<Integer, String> data = metadata.getData();
-            outputStream.writeByte(data.size());
+            Buffer buffer = memoryManager.allocate(1);
+            buffer.put((byte) data.size());
+            buffer.trim();
+            headBuffer.append(buffer);
             for (Integer key : data.keySet()) {
-                outputStream.writeInt(key);
-                len += 4;
                 byte[] bytes = data.get(key).getBytes();
-                outputStream.writeByte(bytes.length);
-                len += 1;
-                outputStream.writeBytes(bytes);
-                len += bytes.length;
+                buffer = memoryManager.allocate(5 + bytes.length);
+                buffer.putInt(key);
+                buffer.put((byte) bytes.length);
+                buffer.put(bytes);
+                buffer.trim();
+                headBuffer.append(buffer);
+                len += 5 + bytes.length;
             }
             headLen += len;
         } else {
-            outputStream.writeByte(-1);
+            Buffer buffer = memoryManager.allocate(1);
+            buffer.put((byte) -1);
+            buffer.trim();
+            headBuffer.append(buffer);
             headLen++;
         }
+
         int bodyLen = 0;
         byte[] data = this.getData();
         if (data != null) {
             bodyLen = this.getData().length;
         }
         int length = headLen + bodyLen + HEAD_LEN;
-        Buffer buffer = MemoryManager.DEFAULT_MEMORY_MANAGER.allocate(length);
+        Buffer buffer = memoryManager.allocate(length);
         buffer.putInt(length);
         buffer.putInt(this.getId());
-        buffer.put((byte) this.getStatus().getId());
-        buffer.put(outputStream.getBuffer());
+        buffer.put((byte) (this.getStatus().getId()));
+        buffer.put(headBuffer);
+        headBuffer.tryDispose();
         if (data != null)
             buffer.put(data);
-        buffer.position(0);
+        buffer.flip();
         return buffer;
     }
+
 }

@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.rpc.*;
+import org.dhp.net.BufferMessage;
 
 import java.io.IOException;
 import java.nio.channels.SelectionKey;
@@ -67,13 +68,13 @@ public class NioSelectorThread extends Thread {
         try {
             NioSession session = (NioSession) event.attachment();
             //socket 读取 bytes到session里面
-            List<NioMessage> messages = new LinkedList<>();
+            List<BufferMessage> messages = new LinkedList<>();
             if (!session.getMessageDecoder().read((SocketChannel) event.channel(), messages)) {
                 session.destroy();
                 event.cancel();
                 return false;
             }
-            for (NioMessage message : messages) {
+            for (BufferMessage message : messages) {
                 dealMessage(session, message);
             }
         } catch (Throwable e) {
@@ -83,7 +84,7 @@ public class NioSelectorThread extends Thread {
 
     }
 
-    protected void dealMessage(NioSession session, NioMessage message) {
+    protected void dealMessage(NioSession session, BufferMessage message) {
         if (!session.isRegister()) {
             if (message.getCommand().equalsIgnoreCase("register")) {
                 session.setId(ProtostuffUtils.deserialize(message.getData(), Long.class));
@@ -116,7 +117,7 @@ public class NioSelectorThread extends Thread {
         }
 
         public void onCanceled() {
-            NioMessage retMessage = new NioMessage();
+            BufferMessage retMessage = new BufferMessage();
             retMessage.setId(message.getId());
             retMessage.setStatus(MessageStatus.Canceled);
             retMessage.setMetadata(message.getMetadata());
@@ -126,7 +127,7 @@ public class NioSelectorThread extends Thread {
         }
 
         public void onNext(Object value) {
-            NioMessage retMessage = new NioMessage();
+            BufferMessage retMessage = new BufferMessage();
             retMessage.setId(message.getId());
             retMessage.setStatus(MessageStatus.Updating);
             retMessage.setCommand(command.getName());
@@ -137,7 +138,7 @@ public class NioSelectorThread extends Thread {
         }
 
         public void onFailed(Throwable throwable) {
-            NioMessage retMessage = new NioMessage();
+            BufferMessage retMessage = new BufferMessage();
             retMessage.setId(message.getId());
             retMessage.setStatus(MessageStatus.Failed);
             retMessage.setCommand(command.getName());
@@ -148,7 +149,7 @@ public class NioSelectorThread extends Thread {
         }
 
         public void onCompleted() {
-            NioMessage retMessage = new NioMessage();
+            BufferMessage retMessage = new BufferMessage();
             retMessage.setId(message.getId());
             retMessage.setStatus(MessageStatus.Completed);
             retMessage.setMetadata(message.getMetadata());

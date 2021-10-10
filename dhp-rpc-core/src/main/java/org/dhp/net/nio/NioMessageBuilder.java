@@ -2,6 +2,7 @@ package org.dhp.net.nio;
 
 import org.dhp.core.rpc.MessageStatus;
 import org.dhp.core.rpc.MetaData;
+import org.dhp.net.BufferMessage;
 
 public class NioMessageBuilder {
     String command;
@@ -29,8 +30,8 @@ public class NioMessageBuilder {
         return this;
     }
 
-    public NioMessage build() {
-        NioMessage message = new NioMessage();
+    public BufferMessage build() {
+        BufferMessage message = new BufferMessage();
         message.setStatus(status);
         message.setMetadata(metadata);
         message.setCommand(command);

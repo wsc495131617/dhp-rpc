@@ -3,6 +3,7 @@ package org.dhp.net.nio;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
 import org.dhp.core.rpc.*;
+import org.dhp.net.BufferMessage;
 import org.glassfish.grizzly.Buffer;
 
 import java.io.IOException;
@@ -80,7 +81,7 @@ public class NioRpcChannel extends RpcChannel {
     }
 
     protected boolean readMessage() {
-        List<NioMessage> messages = new LinkedList<>();
+        List<BufferMessage> messages = new LinkedList<>();
         if (!messageDecoder.read(socketChannel, messages)) {
             //关闭了
             this.active = false;
@@ -121,7 +122,7 @@ public class NioRpcChannel extends RpcChannel {
         }
     }
 
-    public NioMessage sendMessage(String command, byte[] body) throws IOException, TimeoutException {
+    public BufferMessage sendMessage(String command, byte[] body) throws IOException, TimeoutException {
         synchronized (socketChannel) {
             while (readyToCloseConns.contains(socketChannel)) {
                 try {
@@ -141,7 +142,7 @@ public class NioRpcChannel extends RpcChannel {
             }
         }
 
-        NioMessage message = new NioMessage();
+        BufferMessage message = new BufferMessage();
         message.setId(_ID.incrementAndGet());
         message.setCommand(command);
         message.setData(body);
@@ -154,7 +155,7 @@ public class NioRpcChannel extends RpcChannel {
 
     @Override
     public Integer write(String name, byte[] argBody, Stream<Message> messageStream) {
-        NioMessage message = null;
+        BufferMessage message = null;
         try {
             message = sendMessage(name, argBody);
             streamManager.setStream(message, messageStream);

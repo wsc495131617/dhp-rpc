@@ -1,6 +1,7 @@
 package org.dhp.net.nio;
 
 import lombok.extern.slf4j.Slf4j;
+import org.dhp.net.BufferMessage;
 import org.glassfish.grizzly.Buffer;
 import org.glassfish.grizzly.memory.MemoryManager;
 import org.glassfish.grizzly.memory.PooledMemoryManager;
@@ -14,7 +15,7 @@ import java.util.List;
 public class MessageDecoder {
 
     //HeapMemoryManager 因为需要线程池支持缓存，所以没用grizzly框架就不能用HeapMemoryManager
-    static MemoryManager memoryManager = new PooledMemoryManager(){
+    public static MemoryManager memoryManager = new PooledMemoryManager(){
         @Override
         protected Object createJmxManagementObject() {
             return new MemoryManagerJmxObject(this);
@@ -31,7 +32,7 @@ public class MessageDecoder {
     protected int limit;
 
 
-    public boolean read(SocketChannel socket, List<NioMessage> list) {
+    public boolean read(SocketChannel socket, List<BufferMessage> list) {
         try {
             limit = socket.read(buffer);
             //如果读取为-1，说明已经断开
@@ -56,10 +57,10 @@ public class MessageDecoder {
                     position += remaining;
                     buffer.position(position);
 
-                    NioMessage msg = new NioMessage(msgBuf);
+                    BufferMessage msg = new BufferMessage(msgBuf);
                     list.add(msg);
                     //重置，粘包处理
-                    msgBuf.dispose();
+                    msgBuf.tryDispose();
                     msgBuf = null;
                     //如果下一个包头存在
                     if (limit - position > 4) {

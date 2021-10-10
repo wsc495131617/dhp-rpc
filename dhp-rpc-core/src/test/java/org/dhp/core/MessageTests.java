@@ -2,7 +2,7 @@ package org.dhp.core;
 
 import io.netty.buffer.ByteBuf;
 import lombok.extern.slf4j.Slf4j;
-import org.dhp.net.grizzly.GrizzlyMessage;
+import org.dhp.net.BufferMessage;
 import org.dhp.net.netty4.NettyMessage;
 import org.dhp.core.rpc.MetaData;
 import org.glassfish.grizzly.Buffer;
@@ -10,11 +10,11 @@ import org.junit.Test;
 
 @Slf4j
 public class MessageTests {
-    int TOTAL = 3000000;
+    int TOTAL = 300000;
 
     @Test
     public void grizzlyMessage() {
-        GrizzlyMessage msg = new GrizzlyMessage();
+        BufferMessage msg = new BufferMessage();
         msg.setId(1);
         msg.setCommand("test");
         MetaData metadata = new MetaData();
@@ -23,21 +23,21 @@ public class MessageTests {
         msg.setData("hello".getBytes());
         Buffer buffer = msg.pack();
         log.info("buffer:{}", buffer);
-        msg = new GrizzlyMessage(buffer);
+        msg = new BufferMessage(buffer);
         log.info("msg:{}", msg);
 
-        msg = new GrizzlyMessage();
+        msg = new BufferMessage();
         msg.setId(1);
         msg.setCommand("test");
         msg.setData("hello".getBytes());
         buffer = msg.pack();
         log.info("buffer:{}", buffer);
-        msg = new GrizzlyMessage(buffer);
+        msg = new BufferMessage(buffer);
         log.info("msg:{}", msg);
 
         long st = System.currentTimeMillis();
         for (int i = 0; i < TOTAL; i++) {
-            msg = new GrizzlyMessage();
+            msg = new BufferMessage();
             msg.setId(1);
             msg.setCommand("test");
             metadata = new MetaData();
@@ -45,14 +45,14 @@ public class MessageTests {
             msg.setMetadata(metadata);
             msg.setData("hello".getBytes());
             buffer = msg.pack();
-            msg = new GrizzlyMessage(buffer);
+            msg = new BufferMessage(buffer);
 
-            msg = new GrizzlyMessage();
+            msg = new BufferMessage();
             msg.setId(1);
             msg.setCommand("test");
             msg.setData("hello".getBytes());
             buffer = msg.pack();
-            msg = new GrizzlyMessage(buffer);
+            msg = new BufferMessage(buffer);
         }
         System.out.println("cost: " + (System.currentTimeMillis() - st) + "ms");
     }

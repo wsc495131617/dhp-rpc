@@ -4,6 +4,7 @@ import org.dhp.core.rpc.Message;
 import org.dhp.core.rpc.RpcErrorCode;
 import org.dhp.core.rpc.RpcException;
 import org.dhp.core.rpc.Session;
+import org.dhp.net.BufferMessage;
 import org.glassfish.grizzly.Buffer;
 
 import java.io.IOException;
@@ -32,7 +33,7 @@ public class NioSession extends Session {
 
     @Override
     public void write(Message message) {
-        Buffer buf = ((NioMessage) message).pack();
+        Buffer buf = ((BufferMessage) message).pack();
         try {
             channel.write(buf.toByteBuffer());
         } catch (IOException e) {

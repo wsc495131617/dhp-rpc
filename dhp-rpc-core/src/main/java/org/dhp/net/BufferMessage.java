@@ -1,22 +1,23 @@
-package org.dhp.net.nio;
+package org.dhp.net;
 
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.core.rpc.Message;
 import org.dhp.core.rpc.MessageStatus;
 import org.dhp.core.rpc.MetaData;
+import org.dhp.net.nio.MessageDecoder;
 import org.glassfish.grizzly.Buffer;
 import org.glassfish.grizzly.memory.CompositeBuffer;
 
 import java.util.Map;
 
 @Slf4j
-public class NioMessage extends Message {
+public class BufferMessage extends Message {
 
-    public NioMessage(Buffer buffer) {
+    public BufferMessage(Buffer buffer) {
         this.unpack(buffer);
     }
 
-    public NioMessage() {
+    public BufferMessage() {
 
     }
 
@@ -78,6 +79,8 @@ public class NioMessage extends Message {
                 buffer.putInt(key);
                 buffer.put((byte) bytes.length);
                 buffer.put(bytes);
+                buffer.trim();
+                headBuffer.append(buffer);
                 len += 5 + bytes.length;
             }
             headLen += len;
@@ -100,7 +103,7 @@ public class NioMessage extends Message {
         buffer.putInt(this.getId());
         buffer.put((byte) (this.getStatus().getId()));
         buffer.put(headBuffer);
-        headBuffer.dispose();
+        headBuffer.tryDispose();
         if (data != null)
             buffer.put(data);
         buffer.flip();
