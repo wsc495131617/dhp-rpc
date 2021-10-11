@@ -71,7 +71,7 @@ public class ClientStreamManager implements Runnable {
     public void handleMessage(Message message) {
         if (!handlerMap.containsKey(message.getId()) && !streamMessages.containsKey(message.getId())) {
             cacheMessages.add(message);
-            log.info("message so fast:{}", message);
+//            log.info("message so fast:{}", message);
             asyncDealMessagePool.schedule(this, 1, TimeUnit.MILLISECONDS);
             return;
         }

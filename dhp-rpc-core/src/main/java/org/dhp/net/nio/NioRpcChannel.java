@@ -14,8 +14,7 @@ import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.TimeoutException;
 
 @Slf4j
 public class NioRpcChannel extends RpcChannel {
@@ -24,9 +23,9 @@ public class NioRpcChannel extends RpcChannel {
 
     ClientStreamManager streamManager;
 
-    static Selector selector;
+    Selector selector;
 
-    static synchronized Selector getSelector() {
+    synchronized Selector getSelector() {
         if (selector == null) {
             try {
                 selector = Selector.open();
@@ -45,7 +44,7 @@ public class NioRpcChannel extends RpcChannel {
                         }
                     }
                 });
-                thread.setName("MainClientLoop");
+                thread.setName("NIOClientLoop-" + getId());
                 thread.setDaemon(true);
                 thread.start();
             } catch (IOException e) {
@@ -54,16 +53,10 @@ public class NioRpcChannel extends RpcChannel {
         return selector;
     }
 
-    static Map<SocketChannel, NioRpcChannel> channelMap = new ConcurrentHashMap<>();
-
     static void dealSelectionKey(SelectionKey key) {
         if (key.isReadable()) {
-            SocketChannel socket = (SocketChannel) key.channel();
-            //socket 读取 bytes到session里面
-            NioRpcChannel channel = channelMap.get(socket);
-            if(!channel.readMessage()){
-                channelMap.remove(socket);
-            }
+            NioRpcChannel channel = (NioRpcChannel) key.attachment();
+            channel.readMessage();
         }
     }
 
@@ -112,12 +105,11 @@ public class NioRpcChannel extends RpcChannel {
             if (socketChannel == null || !socketChannel.isConnected()) {
                 socketChannel = SocketChannel.open(new InetSocketAddress(this.getHost(), this.getPort()));
                 socketChannel.configureBlocking(false);
-                socketChannel.register(getSelector(), SelectionKey.OP_READ);
-                channelMap.put(socketChannel, this);
+                socketChannel.register(getSelector(), SelectionKey.OP_READ, this);
             }
             return register();
         } catch (IOException e) {
-            log.error("connet error"+e.getMessage(), e);
+            log.error("connet error" + e.getMessage(), e);
             return false;
         }
     }
@@ -169,4 +161,5 @@ public class NioRpcChannel extends RpcChannel {
     public void close() {
 
     }
+
 }

@@ -69,8 +69,7 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
             channels = allChannels.get(node);
         }
         int len = channels.length;
-//        int randomIndex = RandomUtils.nextInt(0, len);
-        int randomIndex = 0;
+        int randomIndex = (int) (Thread.currentThread().getId() % len);
         for (int index = randomIndex; index < len + randomIndex; index++) {
             RpcChannel channel = channels[index % len];
             if (channel == null) {
