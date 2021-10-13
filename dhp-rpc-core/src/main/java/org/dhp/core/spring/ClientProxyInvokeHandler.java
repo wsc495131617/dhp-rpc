@@ -5,7 +5,6 @@ import org.dhp.common.annotation.DMethod;
 import org.dhp.common.annotation.DService;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.rpc.StreamFuture;
-import org.dhp.common.utils.JacksonUtil;
 import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.rpc.*;
 import org.springframework.beans.BeansException;
@@ -154,9 +153,9 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
                 } else {
                     finalFuture.result(ret);
                 }
-                if (log.isDebugEnabled()) {
-                    log.debug("clientInvoked {} updating cost: {}ns", value.getCommand(), System.nanoTime() - this.ts);
-                }
+//                if (log.isDebugEnabled()) {
+//                    log.debug("clientInvoked {} updating cost: {}ns", value.getCommand(), System.nanoTime() - this.ts);
+//                }
                 Message.requestLatency.labels("clientInvoked", command.getName(), MessageStatus.Updating.name()).observe(System.nanoTime() - this.ts);
             }
 
@@ -182,9 +181,9 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
         };
         //发送
         Integer messageId = sendMessage(command, argBody, stream);
-        if (log.isInfoEnabled()) {
-            log.info("call {} - {}, args: {}", messageId, command.getMethod(), JacksonUtil.bean2Json(args));
-        }
+//        if (log.isInfoEnabled()) {
+//            log.info("call {} - {}, args: {}", messageId, command.getMethod(), JacksonUtil.bean2Json(args));
+//        }
         if (messageId == null) {
             throw new RpcException(RpcErrorCode.SEND_MESSAGE_FAILED);
         }

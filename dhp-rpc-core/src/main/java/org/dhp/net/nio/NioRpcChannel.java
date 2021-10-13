@@ -25,7 +25,7 @@ public class NioRpcChannel extends RpcChannel {
 
     Selector selector;
 
-    synchronized Selector getSelector() {
+    Selector getSelector() {
         if (selector == null) {
             try {
                 selector = Selector.open();
@@ -54,7 +54,7 @@ public class NioRpcChannel extends RpcChannel {
     }
 
     static void dealSelectionKey(SelectionKey key) {
-        if (key.isReadable()) {
+        if (key.isReadable() && key.isValid()) {
             NioRpcChannel channel = (NioRpcChannel) key.attachment();
             channel.readMessage();
         }
@@ -74,6 +74,9 @@ public class NioRpcChannel extends RpcChannel {
     }
 
     protected boolean readMessage() {
+        if(socketChannel == null) {
+            return false;
+        }
         List<BufferMessage> messages = new LinkedList<>();
         if (!messageDecoder.read(socketChannel, messages)) {
             //关闭了
