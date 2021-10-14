@@ -13,20 +13,24 @@
 ```
 
 ### 服务端使用
-```java
-@DhpRpcClientScanner(basePackages="org.dhp.examples.rpcdemo")
+```properties
+dhp.port = 9001 # port > 0
 
 ```
 
 ### 底层网络通信模式
 1. Grizzly
-   - 作为微服务内部通讯相对可控的框架，性能一般配置下币Netty要好
+   - 作为微服务内部通讯相对可控的框架，性能比Netty要好一些，主要原因是内存和线程模式的优化
 2. Netty
-   - 需要做优化
+   - 需要做优化，比如调整IOSelector的线程池数量
 3. NIO
-   - 简单通过单Selector实现，内网通讯足够用了
+   - 服务端自建了Boss线程用于Accept Socket，可以配置NIOSelector线程用于接受请求和处理
+4. ZMQ
+   todo
+5. AIO
+   todo
 ### 底层线程模型
-1. 网络通信层(Grizzly, Netty, ZMQ, NIO)
+1. 网络通信层(Grizzly, Netty, NIO)
    - 负责消息包的接受和发送
    - 负责断开重连，心跳机制等
 2. 线程执行调度层（Workers)
@@ -39,12 +43,15 @@
 
 ```yaml
 dhp:
-  type: Netty # Grizzly(default) Netty 
+  type: Netty # Grizzly(default) Netty NIO
   port: 6001 # Server port 有该配置就会对外开放dhp服务
   nodes: # downStream nodes
   - name: demo2  # DService(node='demo2')
     host: 127.0.0.1
     port: 6002
+  lb:
+    enable: true
+    zk_url: localhost:2181 # 通过zk作为注册中心
 ```
 
                           
