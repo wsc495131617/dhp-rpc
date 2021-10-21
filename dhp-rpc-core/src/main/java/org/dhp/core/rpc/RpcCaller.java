@@ -3,6 +3,7 @@ package org.dhp.core.rpc;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.utils.ProtostuffUtils;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.util.concurrent.ExecutionException;
@@ -10,13 +11,18 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Slf4j
+@Component
 public class RpcCaller {
     @Resource
     RpcChannelPool rpcChannelPool;
 
     public <T> T call(String nodeName, String commandName, Object arg, Class<T> respCls) {
-        long ts = System.nanoTime();
         RpcChannel channel = rpcChannelPool.getChannel(nodeName);
+        return call(channel, commandName, arg, respCls);
+    }
+
+    public <T> T call(RpcChannel channel, String commandName, Object arg, final Class<T> respCls) {
+        long ts = System.nanoTime();
         FutureImpl<T> finalFuture = new FutureImpl();
         Stream<Message> stream = new Stream<Message>() {
             long ts = System.nanoTime();

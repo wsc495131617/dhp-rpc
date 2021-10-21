@@ -1,5 +1,6 @@
 package org.dhp.core.rpc;
 
+import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.core.spring.DhpProperties;
 import org.springframework.beans.BeansException;
@@ -8,6 +9,7 @@ import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.InitializingBean;
 
 import javax.annotation.Resource;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -33,8 +35,8 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
         return allChannels;
     }
 
-    protected Node getNode(String nodeName) {
-        TreeSet<Node> nodes = new TreeSet<>();
+    public List<Node> getNodes(String nodeName) {
+        List<Node> nodes = Lists.newLinkedList();
         if (nodeName != null && properties.getNodes() != null) {
             for (Node node : properties.getNodes()) {
                 //如果
@@ -43,20 +45,42 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
                 }
             }
         }
+        return nodes;
+    }
+
+    protected Node getMasterNode(String nodeName) {
+        TreeSet<Node> nodes = new TreeSet<>();
+        if (nodeName != null && properties.getNodes() != null) {
+            for (Node node : properties.getNodes()) {
+                //如果
+                if (node.isEnable() && node.getName().equals(nodeName)) {
+                    nodes.add(node);
+                }
+            }
+        }
         return nodes.pollFirst();
+    }
+
+    /**
+     * 根据nodeName获取
+     * @param nodeName
+     * @return
+     */
+    public RpcChannel getChannel(String nodeName) {
+        Node node = getMasterNode(nodeName);
+        if (node == null) {
+            throw new RpcException(RpcErrorCode.NODE_NOT_FOUND);
+        }
+        return getChannel(node);
     }
 
     /**
      * 需要确保并发有效
      *
-     * @param nodeName
+     * @param node
      * @return
      */
-    public RpcChannel getChannel(String nodeName) {
-        Node node = getNode(nodeName);
-        if (node == null) {
-            throw new RpcException(RpcErrorCode.NODE_NOT_FOUND);
-        }
+    public RpcChannel getChannel(Node node) {
         //if existed
         RpcChannel[] channels;
         if (!allChannels.containsKey(node)) {

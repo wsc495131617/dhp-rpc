@@ -112,7 +112,7 @@ public class NioRpcChannel extends RpcChannel {
             }
             return register();
         } catch (IOException e) {
-            log.error("connet error" + e.getMessage(), e);
+            log.error("connet error {}", e.getMessage());
             return false;
         }
     }

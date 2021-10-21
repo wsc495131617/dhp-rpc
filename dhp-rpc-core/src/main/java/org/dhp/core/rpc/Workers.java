@@ -1,12 +1,16 @@
 package org.dhp.core.rpc;
 
 import io.prometheus.client.Gauge;
+import org.dhp.common.core.ThreadPoolExecutorMetrics;
 import org.dhp.common.utils.Cast;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * @author zhangcb
@@ -26,12 +30,24 @@ public class Workers {
      */
     public static int CORE_POOL_SIZE = 8;
 
-    public static RpcExecutorService[] coreWorkers;
-
-    public static final Map<String, RpcExecutorService> commandWorkers = new HashMap<>();
+    /**
+     * 共享命令线程池
+     */
+    public static int COMMAND_POOL_SIZE = 20;
 
     /**
-     * 100 毫秒的延迟 就需要单独分离Worker处理，避免影响主线程。
+     * 单个RpcWorker的任务最大数量
+     */
+    public static final int MAX_WORKER_TASK_SIZE = 200000;
+
+    public static RpcWorker[] coreWorkers;
+
+    public static final Map<String, PooledRpcWorker> commandWorkers = new HashMap<>();
+
+    static ExecutorService pool;
+
+    /**
+     * NEW_WORKER_THRESHOLD 毫秒的延迟 就需要单独分离Worker处理，避免影响主线程。
      */
     public static double NEW_WORKER_THRESHOLD = 50;
 
@@ -50,7 +66,14 @@ public class Workers {
         if (value != null) {
             NEW_WORKER_THRESHOLD = Cast.toDouble(value);
         }
-        coreWorkers = new RpcExecutorService[CORE_POOL_SIZE];
+        value = System.getenv("dhp.cmd.pool.size");
+        if (value != null) {
+            COMMAND_POOL_SIZE = Cast.toInteger(value);
+        }
+        coreWorkers = new RpcWorker[CORE_POOL_SIZE];
+        pool = Executors.newFixedThreadPool(COMMAND_POOL_SIZE);
+        ThreadPoolExecutorMetrics.addThreadPoolExecutor((ThreadPoolExecutor) pool, "dhp_command_pool");
+        //搜集线程
         Thread t = new Thread(() -> {
             while (true) {
                 collect();
@@ -66,17 +89,31 @@ public class Workers {
     }
 
     /**
+     * 检查是否还有处理中的消息
+     *
+     * @return
+     */
+    public static boolean hasQueueMessage() {
+        for (RpcWorker executorService : coreWorkers) {
+            if (!executorService.allTasks.isEmpty()) {
+                return true;
+            }
+        }
+        return commandWorkers.values().stream().anyMatch(rpcExecutorService -> !rpcExecutorService.allTasks.isEmpty());
+    }
+
+    /**
      * 纯计算，可以使用同步锁，粒度足够小
      *
      * @param message
      * @return
      */
-    public synchronized static RpcExecutorService getExecutorService(Message message) {
+    public synchronized static RpcWorker getExecutorService(Message message) {
         String commandId = message.getCommand();
         int index = message.getId() % CORE_POOL_SIZE;
         // 假如命令专有线程，那么就直接用
         if (commandWorkers.containsKey(commandId)) {
-            RpcExecutorService worker = commandWorkers.get(commandId);
+            RpcWorker worker = commandWorkers.get(commandId);
             // 首先worker的寿命要有1分钟吧，不然太浪费线程了,其次当前线程很空闲
             if (worker.isOld(60000)) {
                 worker.stop();
@@ -93,7 +130,7 @@ public class Workers {
             coreWorkers[index] = createWorker("RES_" + index);
         }
 
-        RpcExecutorService worker = coreWorkers[index];
+        RpcWorker worker = coreWorkers[index];
         // 核心线程如果出现某个功能号的延迟超过【新建Worker阈值】，那么久专门新建一个
         if (worker.getAvg(commandId) >= NEW_WORKER_THRESHOLD * 1000000
                 || worker.getSize() > TMP_ELASTIC_COUNT) {
@@ -102,9 +139,9 @@ public class Workers {
                 costAvg = NEW_WORKER_THRESHOLD * 1000000;
             }
             worker.setAvg(commandId, NEW_WORKER_THRESHOLD * 1000000 / 2);
-            worker = createWorker("RES_CMD_" + simpleCommandId(commandId));
+            worker = createPooledWorker("POOL_CMD_" + simpleCommandId(commandId));
             worker.setAvg(commandId, costAvg);
-            commandWorkers.put(commandId, worker);
+            commandWorkers.put(commandId, (PooledRpcWorker) worker);
             logger.info("创建新的{},commandId={}", worker, commandId);
         }
         return worker;
@@ -123,8 +160,17 @@ public class Workers {
         return simple;
     }
 
-    public static RpcExecutorService createWorker(String name) {
-        RpcExecutorService worker = new RpcExecutorService(name);
+    public static RpcWorker createWorker(String name) {
+        RpcWorker worker = new RpcWorker(name);
+        Thread t = new Thread(worker);
+        t.setName(name);
+        t.setDaemon(true);
+        t.start();
+        return worker;
+    }
+
+    static PooledRpcWorker createPooledWorker(String name) {
+        PooledRpcWorker worker = new PooledRpcWorker(name, pool);
         Thread t = new Thread(worker);
         t.setName(name);
         t.setDaemon(true);
@@ -133,15 +179,15 @@ public class Workers {
     }
 
     static void collect() {
-        for (RpcExecutorService rpcExecutorService : coreWorkers) {
-            if(rpcExecutorService != null) {
-                rpcExecutorGuage.labels(rpcExecutorService.getName(), "queue").set(rpcExecutorService.getSize());
-                rpcExecutorGuage.labels(rpcExecutorService.getName(), "total").set(rpcExecutorService.getTotal());
+        for (RpcWorker rpcWorker : coreWorkers) {
+            if (rpcWorker != null) {
+                rpcExecutorGuage.labels(rpcWorker.getName(), "queue").set(rpcWorker.getSize());
+                rpcExecutorGuage.labels(rpcWorker.getName(), "total").set(rpcWorker.getTotal());
             }
         }
-        for (RpcExecutorService rpcExecutorService : commandWorkers.values()) {
-            rpcExecutorGuage.labels(rpcExecutorService.getName(), "queue").set(rpcExecutorService.getSize());
-            rpcExecutorGuage.labels(rpcExecutorService.getName(), "total").set(rpcExecutorService.getTotal());
+        for (RpcWorker rpcWorker : commandWorkers.values()) {
+            rpcExecutorGuage.labels(rpcWorker.getName(), "queue").set(rpcWorker.getSize());
+            rpcExecutorGuage.labels(rpcWorker.getName(), "total").set(rpcWorker.getTotal());
         }
     }
 }

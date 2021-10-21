@@ -3,6 +3,7 @@ package org.dhp.core.rpc;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.utils.JacksonUtil;
 import org.dhp.common.utils.ProtostuffUtils;
+import org.dhp.core.rpc.cmd.ServerRpcCommand;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -32,6 +33,9 @@ public class MethodDispatchUtils {
         try {
             if(command.getType() == MethodType.Default) {
                 return ProtostuffUtils.serialize((Class) command.getMethod().getReturnType(), result);
+            } else if(command.getType() == MethodType.Command) {
+                ServerRpcCommand serverRpcCommand  = (ServerRpcCommand) command;
+                return ProtostuffUtils.serialize((Class)serverRpcCommand.getRespCls(), result);
             } else if(command.getType() == MethodType.List){
                 return ProtostuffUtils.serializeList((List) result);
             } else if(command.getType() == MethodType.Future){

@@ -10,10 +10,12 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
-public class RpcExecutorService implements Runnable {
+public class RpcWorker implements Runnable {
 
     static final int LIMIT = 10;
-    protected final LinkedBlockingQueue<RpcExecutor> allTasks = new LinkedBlockingQueue<>();
+    //最多20w条消息
+    protected final LinkedBlockingQueue<RpcExecutor> allTasks = new LinkedBlockingQueue<>(Workers.MAX_WORKER_TASK_SIZE);
+
     protected long liveTime;
 
     @Getter
@@ -22,7 +24,7 @@ public class RpcExecutorService implements Runnable {
     @Getter
     int total = 0;
 
-    public RpcExecutorService(String name) {
+    public RpcWorker(String name) {
         this.liveTime = System.currentTimeMillis();
         this.running = true;
         this.name = name;
@@ -50,57 +52,59 @@ public class RpcExecutorService implements Runnable {
     long lastWaking = System.nanoTime();
     boolean running;
 
+    protected void dealTask(RpcExecutor task) {
+        final Session session = task.session;
+        final Message message = task.message;
+        final int size = allTasks.size();
+        try {
+            long st = System.nanoTime();
+            task.execute();
+            total++;
+            double cost = System.nanoTime() - st;
+            Double costAvg;
+            synchronized (commandCostList) {
+                String commandId = message.getCommand();
+                if (!commandCostList.containsKey(commandId)) {
+                    costAvg = cost;
+                    commandCostList.put(commandId, costAvg);
+                } else {
+                    costAvg = commandCostList.get(commandId);
+                }
+                costAvg = cost * 2 / (LIMIT + 1) + costAvg * (LIMIT - 1) / (LIMIT + 1);
+                commandCostList.put(commandId, costAvg);
+            }
+            if (log.isInfoEnabled() && size > Workers.TMP_ELASTIC_COUNT
+                    //如果100ms处理不了
+                    && st + cost - lastWaking > 1000000 * 100
+            ) {
+                log.warn("处理：{}, 队列剩余：{}, 平均：{}ms， 当前：{}ms, {}", message.getCommand(), size, costAvg / 1000000, cost / 1000000, session);
+                lastWaking = System.nanoTime();
+            }
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        } finally {
+            if (task != null) {
+                task.release();
+            }
+        }
+    }
+
     @Override
     public void run() {
         //一直执行
         while (running || allTasks.size() > 0) {
             RpcExecutor task;
-            int len = 0;
             try {
                 task = allTasks.poll(100, TimeUnit.MILLISECONDS);
                 if (task == null) {
                     lastWaking = System.nanoTime();
                     continue;
                 }
-                len = allTasks.size();
             } catch (InterruptedException e1) {
                 log.error(e1.getLocalizedMessage(), e1);
                 continue;
             }
-            final Session session = task.session;
-            final Message message = task.message;
-            final int size = len;
-            try {
-                long st = System.nanoTime();
-                task.execute();
-                total++;
-                double cost = System.nanoTime() - st;
-                Double costAvg;
-                synchronized (commandCostList) {
-                    String commandId = message.getCommand();
-                    if (!commandCostList.containsKey(commandId)) {
-                        costAvg = cost;
-                        commandCostList.put(commandId, costAvg);
-                    } else {
-                        costAvg = commandCostList.get(commandId);
-                    }
-                    costAvg = cost * 2 / (LIMIT + 1) + costAvg * (LIMIT - 1) / (LIMIT + 1);
-                    commandCostList.put(commandId, costAvg);
-                }
-                if (log.isInfoEnabled() && size > Workers.TMP_ELASTIC_COUNT
-                        //如果100ms处理不了
-                        && st + cost - lastWaking > 1000000 * 100
-                ) {
-                    log.warn("处理：{}, 队列剩余：{}, 平均：{}ms， 当前：{}ms, {}", message.getCommand(), size, costAvg / 1000000, cost / 1000000, session);
-                    lastWaking = System.nanoTime();
-                }
-            } catch (Exception e) {
-                log.error(e.getMessage(), e);
-            } finally {
-                if (task != null) {
-                    task.release();
-                }
-            }
+            dealTask(task);
         }
     }
 

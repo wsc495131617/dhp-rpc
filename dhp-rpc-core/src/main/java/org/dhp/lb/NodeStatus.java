@@ -7,6 +7,8 @@ public class NodeStatus {
     String path;
     String name;
     String host;
+    //高可用状态 master(主), slave(从)
+    String haValue;
     int port;
     //负荷率，计算公式为(memLoad+cpuLoad)/2
     Double totalLoad;

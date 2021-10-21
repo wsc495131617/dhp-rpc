@@ -14,7 +14,8 @@ public class Node implements Comparable<Node> {
     int port;
     String host;
     String path;
-    boolean enable;
+    boolean enable = true;
+    String haValue = "master";
     long timeout;
     int channelSize = 4;
     /**

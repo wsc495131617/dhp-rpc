@@ -1,5 +1,6 @@
 package org.dhp.net.nio;
 
+import lombok.extern.slf4j.Slf4j;
 import org.dhp.core.rpc.Message;
 import org.dhp.core.rpc.RpcErrorCode;
 import org.dhp.core.rpc.RpcException;
@@ -13,6 +14,7 @@ import java.nio.channels.SocketChannel;
 /**
  * 缓存Session的写缓存
  */
+@Slf4j
 public class NioSession extends Session {
 
     MessageDecoder messageDecoder;
