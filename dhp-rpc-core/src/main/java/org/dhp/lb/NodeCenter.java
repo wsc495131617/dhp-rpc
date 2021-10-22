@@ -294,6 +294,7 @@ public class NodeCenter implements Watcher, ApplicationListener<ApplicationEvent
             if (dhpProperties.getPort() > 0) {
                 zk.delete(currentPath, -1);
                 log.info("delete currentPath: {}", currentPath);
+                current = null;
             }
         } catch (InterruptedException e) {
         } catch (KeeperException e) {

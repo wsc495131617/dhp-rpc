@@ -54,13 +54,16 @@ public class HaSupport implements Watcher {
         try {
             zk = new ZooKeeper(zkUrl, sessionTimeout, this);
             String path = "/" + clusterName + "_MASTER";
-            if (zk.exists(path, true) == null) {
+            if (zk.exists(path, false) == null) {
                 zk.create(path, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
             }
             path = "/" + clusterName + "_PREPARE";
-            if (zk.exists(path, true) == null) {
+            if (zk.exists(path, false) == null) {
                 zk.create(path, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
             }
+            zk.addWatch("/" + clusterName + "_MASTER", this, AddWatchMode.PERSISTENT_RECURSIVE);
+            zk.addWatch("/" + clusterName + "_PREPARE", this, AddWatchMode.PERSISTENT_RECURSIVE);
+
             masterPath = "/" + clusterName + "_MASTER/" + dhpProperties.getName();
             preparePath = "/" + clusterName + "_PREPARE/" + dhpProperties.getName();
             master = false;
@@ -89,7 +92,7 @@ public class HaSupport implements Watcher {
     protected boolean master;
 
     /**
-     * 放弃主的身份
+     * 放弃主的身份后，需要主动发送
      *
      * @return
      */
@@ -104,12 +107,20 @@ public class HaSupport implements Watcher {
         return false;
     }
 
+    /**
+     * 主动清理
+     */
     public void close() {
-        try {
-            zk.delete(preparePath, -1);
-            zk.delete(masterPath, -1);
-        } catch (KeeperException e) {
-        } catch (InterruptedException e) {
+        //如果是主动放弃的，需要主动删除
+        if (this.state.equals("giveUp")) {
+            try {
+                //删除masterPath
+                if (zk.exists(masterPath, false) != null) {
+                    //为了避免重复删除
+                    zk.delete(masterPath, -1);
+                }
+            } catch (Exception e) {
+            }
         }
     }
 
@@ -121,31 +132,36 @@ public class HaSupport implements Watcher {
      */
     public boolean notifyToReady() {
         try {
+            //如果当前是主，因为zk重启，或者网络断开之类，就直接
             if (this.state.equals("working")) {
                 log.info("working");
-                return false;
+                //直接调用成为master
+                readyMaster();
+                return true;
             }
             //首先查找是否已经有主了，有主就放弃申请，老老实实当个从
-            Stat stat = zk.exists(masterPath, true);
+            Stat stat = zk.exists(masterPath, false);
             if (stat != null) {
                 log.info("masterPath exists");
                 return false;
             }
             // 如果已经有开始启动的从准备中，那么为了不重复拉去数据，就等待第一个启动的成为主再说
-            stat = zk.exists(preparePath, true);
+            stat = zk.exists(preparePath, false);
             if (stat != null) {
                 log.info("preparePath exists");
-                return false;
-            }
-            try {
-                zk.create(preparePath, nodeName.getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
-            } catch (KeeperException e) {
-                //如果节点已经存在
-                if (e.code() == KeeperException.Code.NODEEXISTS) {
-                    return false;
-                } else {
-                    log.error("preemptReady KeeperException: {}", e.getMessage(), e);
-                    return false;
+                readyMaster();
+                return true;
+            } else {
+                try {
+                    zk.create(preparePath, nodeName.getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+                } catch (KeeperException e) {
+                    //如果节点已经存在
+                    if (e.code() == KeeperException.Code.NODEEXISTS) {
+                        return false;
+                    } else {
+                        log.error("preemptReady KeeperException: {}", e.getMessage(), e);
+                        return false;
+                    }
                 }
             }
             return true;
@@ -159,6 +175,9 @@ public class HaSupport implements Watcher {
 
     @Override
     public void process(WatchedEvent watchedEvent) {
+        if ("giveUp".equals(this.state)) {
+            return;
+        }
         log.info("WatchedEvent: {}", watchedEvent);
         if (Event.KeeperState.Expired == watchedEvent.getState()) {
             try {
@@ -176,11 +195,12 @@ public class HaSupport implements Watcher {
                     readyMaster();
                 }
             } else if (Event.EventType.NodeDeleted == watchedEvent.getType()) {
-                if (watchedEvent.getPath().equals(masterPath) || watchedEvent.getPath().equals(preparePath)) {
+                //主关闭的情况，需要一起继续开始抢
+                if (watchedEvent.getPath().equals(masterPath)) {
+                    //如果是自己放弃的，就不再抢主
                     if (this.state.equals("giveUp")) {
                         return;
                     }
-                    //主自我放弃后，那么从就继续准备
                     this.notifyToReady();
                 }
             }
@@ -208,7 +228,7 @@ public class HaSupport implements Watcher {
     }
 
     /**
-     * 准备成为主，这时候，就看各个从初始化数据快不快了
+     * 通知应用，可以去抢占主了
      */
     void readyMaster() {
         log.info("publishEvent HaEvent PREPARE_MASTER");
@@ -220,6 +240,14 @@ public class HaSupport implements Watcher {
      */
     public boolean preemptToMaster() {
         try {
+            //抢占主之前需要删除PreparePath
+            if (zk.exists(preparePath, false) != null) {
+                //为了避免重复删除
+                try {
+                    zk.delete(preparePath, -1);
+                } catch (Exception e) {
+                }
+            }
             Stat stat = zk.exists(masterPath, false);
             //如果有存在
             if (stat != null) {
@@ -229,6 +257,7 @@ public class HaSupport implements Watcher {
                 if (curNodeName.equals(this.nodeName)) {
                     this.state = "working";
                     this.master = true;
+                    log.info("当前节点自己重新抢占成功");
                     return true;
                 } else {
                     this.applicationContext.publishEvent(new HaEvent(HaEvent.PREEMPT_MASTER_FAILED, this));

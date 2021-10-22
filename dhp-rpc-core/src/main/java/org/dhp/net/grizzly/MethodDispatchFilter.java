@@ -59,7 +59,7 @@ public class MethodDispatchFilter extends BaseFilter {
         }
         ServerCommand command = methodManager.getCommand(message.getCommand());
         Stream stream = new GrizzlyStream(session.getId(), command, message);
-        Workers.getExecutorService(message).execute(command, stream, message, session);
+        Workers.getWorker(message).execute(command, stream, message, session);
         return ctx.getStopAction();
     }
 

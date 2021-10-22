@@ -101,7 +101,7 @@ public class NioSelectorThread extends Thread {
         }
         ServerCommand command = methodManager.getCommand(message.getCommand());
         Stream stream = new NioStream(session.getId(), command, message);
-        Workers.getExecutorService(message).execute(command, stream, message, session);
+        Workers.getWorker(message).execute(command, stream, message, session);
     }
 
     class NioStream<T> implements Stream<T> {

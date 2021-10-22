@@ -108,7 +108,7 @@ public class Workers {
      * @param message
      * @return
      */
-    public synchronized static RpcWorker getExecutorService(Message message) {
+    public synchronized static RpcWorker getWorker(Message message) {
         String commandId = message.getCommand();
         int index = message.getId() % CORE_POOL_SIZE;
         // 假如命令专有线程，那么就直接用
