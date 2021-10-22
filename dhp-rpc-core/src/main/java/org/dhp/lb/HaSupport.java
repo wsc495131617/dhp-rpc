@@ -12,7 +12,9 @@ import org.springframework.context.ApplicationContext;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
-import java.io.IOException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -49,21 +51,12 @@ public class HaSupport implements Watcher {
 
     static int sessionTimeout = 3000;
 
+    static ScheduledExecutorService pool = Executors.newScheduledThreadPool(1);
+
     @PostConstruct
     public void init() {
         try {
-            zk = new ZooKeeper(zkUrl, sessionTimeout, this);
-            String path = "/" + clusterName + "_MASTER";
-            if (zk.exists(path, false) == null) {
-                zk.create(path, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-            }
-            path = "/" + clusterName + "_PREPARE";
-            if (zk.exists(path, false) == null) {
-                zk.create(path, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-            }
-            zk.addWatch("/" + clusterName + "_MASTER", this, AddWatchMode.PERSISTENT_RECURSIVE);
-            zk.addWatch("/" + clusterName + "_PREPARE", this, AddWatchMode.PERSISTENT_RECURSIVE);
-
+            connect();
             masterPath = "/" + clusterName + "_MASTER/" + dhpProperties.getName();
             preparePath = "/" + clusterName + "_PREPARE/" + dhpProperties.getName();
             master = false;
@@ -124,6 +117,20 @@ public class HaSupport implements Watcher {
         }
     }
 
+    public boolean hasMaster() {
+        //首先查找是否已经有主了，有主就放弃申请，老老实实当个从
+        try {
+            Stat stat = zk.exists(masterPath, false);
+            if (stat != null) {
+                log.info("masterPath exists");
+                return true;
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     /**
      * 一般是第一个启动的，或者是主放弃了身份后，可以开始抢主了
      * Prepare节点没有就创建，有就设置当前节点内容
@@ -139,34 +146,19 @@ public class HaSupport implements Watcher {
                 readyMaster();
                 return true;
             }
-            //首先查找是否已经有主了，有主就放弃申请，老老实实当个从
-            Stat stat = zk.exists(masterPath, false);
-            if (stat != null) {
-                log.info("masterPath exists");
-                return false;
-            }
-            // 如果已经有开始启动的从准备中，那么为了不重复拉去数据，就等待第一个启动的成为主再说
-            stat = zk.exists(preparePath, false);
-            if (stat != null) {
-                log.info("preparePath exists");
-                readyMaster();
-                return true;
-            } else {
-                try {
-                    zk.create(preparePath, nodeName.getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
-                } catch (KeeperException e) {
-                    //如果节点已经存在
-                    if (e.code() == KeeperException.Code.NODEEXISTS) {
-                        return false;
-                    } else {
-                        log.error("preemptReady KeeperException: {}", e.getMessage(), e);
-                        return false;
-                    }
+            //直接尝试创建，只需要有一个从节点触发成功，所有节点都会收到创建Prepare的消息
+            try {
+                zk.create(preparePath, nodeName.getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+            } catch (KeeperException e) {
+                //如果节点已经存在
+                if (e.code() == KeeperException.Code.NODEEXISTS) {
+                    return false;
+                } else {
+                    log.error("preemptReady KeeperException: {}", e.getMessage(), e);
+                    return false;
                 }
             }
             return true;
-        } catch (KeeperException e) {
-            log.error("preemptReady KeeperException: {}", e.getMessage(), e);
         } catch (InterruptedException e) {
             log.error("preemptReady InterruptedException: {}", e.getMessage(), e);
         }
@@ -180,11 +172,7 @@ public class HaSupport implements Watcher {
         }
         log.info("WatchedEvent: {}", watchedEvent);
         if (Event.KeeperState.Expired == watchedEvent.getState()) {
-            try {
-                zk = new ZooKeeper(zkUrl, sessionTimeout, this);
-            } catch (IOException e) {
-                log.info("connect zk error: {}", e.getMessage(), e);
-            }
+            reconnect();
         } else if (Event.KeeperState.SyncConnected == watchedEvent.getState()) {
             //创建节点
             if (Event.EventType.NodeCreated == watchedEvent.getType()) {
@@ -192,10 +180,15 @@ public class HaSupport implements Watcher {
                 if (watchedEvent.getPath().equals(masterPath)) {
                     completeMaster();
                 } else if (watchedEvent.getPath().equals(preparePath)) {
+                    //从节点触发创建Prepare
+                    //需要判断当前是否是主
                     readyMaster();
                 }
             } else if (Event.EventType.NodeDeleted == watchedEvent.getType()) {
-                //主关闭的情况，需要一起继续开始抢
+                //删除master分为
+                // 1. 意外关闭 kill -9 等到zk的session时间到了后，会触发删除
+                // 2. 自己giveUp
+                // 3. 别人giveUp后收到消息
                 if (watchedEvent.getPath().equals(masterPath)) {
                     //如果是自己放弃的，就不再抢主
                     if (this.state.equals("giveUp")) {
@@ -208,6 +201,37 @@ public class HaSupport implements Watcher {
         }
     }
 
+    boolean connect() {
+        try {
+            zk = new ZooKeeper(zkUrl, sessionTimeout, this);
+            String path = "/" + clusterName + "_MASTER";
+            if (zk.exists(path, false) == null) {
+                zk.create(path, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            }
+            path = "/" + clusterName + "_PREPARE";
+            if (zk.exists(path, false) == null) {
+                zk.create(path, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            }
+            zk.addWatch("/" + clusterName + "_MASTER", this, AddWatchMode.PERSISTENT_RECURSIVE);
+            zk.addWatch("/" + clusterName + "_PREPARE", this, AddWatchMode.PERSISTENT_RECURSIVE);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    void reconnect() {
+        //重连成功后
+        if (connect()) {
+            //重新走一遍抢的流程，正常来说，应该是当前节点抢成功
+            this.notifyToReady();
+        } else {
+            pool.schedule(() -> {
+                reconnect();
+            }, 3, TimeUnit.SECONDS);
+        }
+    }
+
     void completeMaster() {
         try {
             byte[] data = zk.getData(masterPath, false, null);
@@ -217,6 +241,8 @@ public class HaSupport implements Watcher {
                 this.applicationContext.publishEvent(new HaEvent(HaEvent.TOBE_MASTER, this));
             } else {
                 log.info("{} 竞争主失败，cur={}", nodeName, curNodeName);
+                this.state = "none";
+                this.master = false;
                 this.applicationContext.publishEvent(new HaEvent(HaEvent.PREEMPT_MASTER_FAILED, this));
             }
         } catch (KeeperException e) {
@@ -274,6 +300,7 @@ public class HaSupport implements Watcher {
                 }
                 this.state = "working";
                 this.master = true;
+                log.info("抢占主成功：{}", nodeName);
             }
         } catch (KeeperException | InterruptedException e) {
             log.error("preemptReady error: {}", e.getMessage(), e);

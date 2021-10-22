@@ -68,8 +68,6 @@ public class NodeCenter implements Watcher, ApplicationListener<ApplicationEvent
 
     static int sessionTimeout = 3000;
 
-    ScheduledExecutorService pool = Executors.newScheduledThreadPool(1);
-
     @PostConstruct
     public void init() throws Exception {
         connectedSemaphore = new CountDownLatch(1);
@@ -158,8 +156,17 @@ public class NodeCenter implements Watcher, ApplicationListener<ApplicationEvent
         current.setTotalLoad((current.getCpuLoad() + current.getMemLoad()) / 2);
         try {
             zk.setData(currentPath, JacksonUtil.bean2JsonBytes(current), -1);
-        } catch (Throwable e) {
+        } catch (KeeperException e) {
+            //如果连接已经断开，就重连
+            if(e.code() == KeeperException.Code.CONNECTIONLOSS) {
+                try {
+                    init();
+                } catch (Exception e1) {
+                }
+            }
             log.error("update Zk Error", e);
+        } catch (InterruptedException e) {
+
         }
     }
 
