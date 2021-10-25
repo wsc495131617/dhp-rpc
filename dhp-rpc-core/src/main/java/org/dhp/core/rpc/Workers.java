@@ -40,7 +40,7 @@ public class Workers {
      */
     public static final int MAX_WORKER_TASK_SIZE = 200000;
 
-    public static RpcWorker[] coreWorkers;
+    public static IRpcWorker[] coreWorkers;
 
     public static final Map<String, PooledRpcWorker> commandWorkers = new HashMap<>();
 
@@ -70,7 +70,7 @@ public class Workers {
         if (value != null) {
             COMMAND_POOL_SIZE = Cast.toInteger(value);
         }
-        coreWorkers = new RpcWorker[CORE_POOL_SIZE];
+        coreWorkers = new IRpcWorker[CORE_POOL_SIZE];
         pool = Executors.newFixedThreadPool(COMMAND_POOL_SIZE);
         ThreadPoolExecutorMetrics.addThreadPoolExecutor((ThreadPoolExecutor) pool, "dhp_command_pool");
         //搜集线程
@@ -89,26 +89,12 @@ public class Workers {
     }
 
     /**
-     * 检查是否还有处理中的消息
-     *
-     * @return
-     */
-    public static boolean hasQueueMessage() {
-        for (RpcWorker executorService : coreWorkers) {
-            if (!executorService.allTasks.isEmpty()) {
-                return true;
-            }
-        }
-        return commandWorkers.values().stream().anyMatch(rpcExecutorService -> !rpcExecutorService.allTasks.isEmpty());
-    }
-
-    /**
      * 纯计算，可以使用同步锁，粒度足够小
      *
      * @param message
      * @return
      */
-    public synchronized static RpcWorker getWorker(Message message) {
+    public synchronized static IRpcWorker getWorker(Message message) {
         String commandId = message.getCommand();
         int index = message.getId() % CORE_POOL_SIZE;
         // 假如命令专有线程，那么就直接用
@@ -130,7 +116,7 @@ public class Workers {
             coreWorkers[index] = createWorker("RES_" + index);
         }
 
-        RpcWorker worker = coreWorkers[index];
+        IRpcWorker worker = coreWorkers[index];
         // 核心线程如果出现某个功能号的延迟超过【新建Worker阈值】，那么久专门新建一个
         if (worker.getAvg(commandId) >= NEW_WORKER_THRESHOLD * 1000000
                 || worker.getSize() > TMP_ELASTIC_COUNT) {
@@ -160,7 +146,7 @@ public class Workers {
         return simple;
     }
 
-    public static RpcWorker createWorker(String name) {
+    public static IRpcWorker createWorker(String name) {
         RpcWorker worker = new RpcWorker(name);
         Thread t = new Thread(worker);
         t.setName(name);
@@ -179,13 +165,13 @@ public class Workers {
     }
 
     static void collect() {
-        for (RpcWorker rpcWorker : coreWorkers) {
+        for (IRpcWorker rpcWorker : coreWorkers) {
             if (rpcWorker != null) {
                 rpcExecutorGuage.labels(rpcWorker.getName(), "queue").set(rpcWorker.getSize());
                 rpcExecutorGuage.labels(rpcWorker.getName(), "total").set(rpcWorker.getTotal());
             }
         }
-        for (RpcWorker rpcWorker : commandWorkers.values()) {
+        for (IRpcWorker rpcWorker : commandWorkers.values()) {
             rpcExecutorGuage.labels(rpcWorker.getName(), "queue").set(rpcWorker.getSize());
             rpcExecutorGuage.labels(rpcWorker.getName(), "total").set(rpcWorker.getTotal());
         }
