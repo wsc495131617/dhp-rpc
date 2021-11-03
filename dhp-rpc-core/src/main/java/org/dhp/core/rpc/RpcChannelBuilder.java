@@ -3,6 +3,7 @@ package org.dhp.core.rpc;
 import org.dhp.net.grizzly.GrizzlyRpcChannel;
 import org.dhp.net.netty4.NettyRpcChannel;
 import org.dhp.net.nio.NioRpcChannel;
+import org.dhp.net.zmq.ZmqRpcChannel;
 
 /**
  * @author zhangcb
@@ -47,8 +48,12 @@ public class RpcChannelBuilder {
             channel = new GrizzlyRpcChannel();
         } else if(this.type == ChannelType.NIO) {
             channel = new NioRpcChannel();
-        } else {
+        } else if (this.type == ChannelType.Netty){
             channel = new NettyRpcChannel();
+        } else if (this.type == ChannelType.ZMQ){
+            channel = new ZmqRpcChannel();
+        } else {
+            throw new RpcException(RpcErrorCode.UNSUPPORTED_COMMAND_TYPE);
         }
         channel.setHost(this.host);
         channel.setPort(this.port);

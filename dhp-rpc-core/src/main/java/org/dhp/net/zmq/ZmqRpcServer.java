@@ -19,17 +19,21 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 
 @Slf4j
-public class ZmqRpcServer implements IRpcServer, Runnable {
+public class ZmqRpcServer implements IRpcServer {
 
     protected int port;
 
     ZMQ.Context context;
-    ZMQ.Socket socket;
+    ZMQ.Socket frontend;
+    ZMQ.Socket backend;
 
     RpcServerMethodManager methodManager;
 
-    public ZmqRpcServer(int port) {
+    int workerThread = 4;
+
+    public ZmqRpcServer(int port, int workerThread) {
         this.port = port;
+        this.workerThread = workerThread;
     }
 
     @Override
@@ -37,12 +41,45 @@ public class ZmqRpcServer implements IRpcServer, Runnable {
         this.methodManager = methodManager;
 
         context = ZMQ.context(1);
-        socket = context.socket(SocketType.REP);
-        socket.bind("tcp://*:" + port);    //绑定端口
+        frontend = context.socket(SocketType.ROUTER);
+        frontend.bind("tcp://*:" + port);    //绑定端口
+        backend = context.socket(SocketType.DEALER);
+        backend.bind("inproc://backend");
+
+        //开启循环
+        for (int i = 1; i <= workerThread; i++) {
+            Thread t = new Thread(() -> {
+                ZMQ.Socket worker = context.socket(SocketType.REP);
+                worker.connect("inproc://backend");
+                while (!Thread.currentThread().isInterrupted()) {
+                    try {
+                        byte[] body = worker.recv();  //获取request发送过来的数据
+                        //处理完就要立即返回
+                        BufferMessage message = new BufferMessage(HeapBuffer.wrap(body));
+                        ServerCommand command = methodManager.getCommand(message.getCommand());
+                        message = dealMessage(command, message);
+                        Buffer buffer = message.pack();
+                        byte[] buf = new byte[buffer.limit()];
+                        System.arraycopy(buffer.array(), buffer.arrayOffset(), buf, 0, buffer.limit());
+                        worker.send(buf);
+                    } catch (Throwable e) {
+                        log.error("recv error: {}", e);
+                    }
+                }
+                worker.close();  //先关闭socket
+            });
+            t.setName("ZMQ_NIO_" + i);
+            t.start();
+        }
 
         //开启主循环
-        Thread t = new Thread(this);
-        t.setName("ZMQ_REP");
+        Thread t = new Thread(()->{
+            ZMQ.proxy(frontend, backend, null);
+            frontend.close();
+            backend.close();
+            context.term();
+        });
+        t.setName("ZMQ_MAIN");
         t.start();
 
         //增加监控
@@ -59,22 +96,6 @@ public class ZmqRpcServer implements IRpcServer, Runnable {
     @Override
     public void shutdown() {
 
-    }
-
-    @Override
-    public void run() {
-        while (!Thread.currentThread().isInterrupted()) {
-            byte[] body = socket.recv();  //获取request发送过来的数据
-            //处理完就要立即返回
-            BufferMessage message = new BufferMessage(HeapBuffer.wrap(body));
-            ServerCommand command = methodManager.getCommand(message.getCommand());
-            message = dealMessage(command, message);
-            Buffer buffer = message.pack();
-            buffer.toByteBuffer();
-            socket.send(buffer.array(), buffer.arrayOffset(), buffer.limit(), 0);
-        }
-        socket.close();  //先关闭socket
-        context.term();  //关闭当前的上下文
     }
 
     protected BufferMessage dealMessage(ServerCommand command, BufferMessage message) {
@@ -127,6 +148,7 @@ public class ZmqRpcServer implements IRpcServer, Runnable {
         }
         throw new RpcException(RpcErrorCode.UNSUPPORTED_COMMAND_TYPE);
     }
+
     private Object invoke(ServerCommand command, Object[] params) throws IllegalAccessException, InvocationTargetException {
         //处理拦截器
         if (command.getInterceptors() != null) {

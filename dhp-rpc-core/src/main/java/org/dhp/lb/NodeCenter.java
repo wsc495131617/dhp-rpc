@@ -12,8 +12,6 @@ import org.dhp.core.rpc.RpcErrorCode;
 import org.dhp.core.rpc.RpcException;
 import org.dhp.core.spring.DhpProperties;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
@@ -31,7 +29,7 @@ import java.util.concurrent.CountDownLatch;
  */
 @Slf4j
 @Data
-public class NodeCenter implements Watcher, ApplicationListener<ApplicationReadyEvent> {
+public class NodeCenter implements Watcher {
 
     /**
      * 集群名称
@@ -119,6 +117,7 @@ public class NodeCenter implements Watcher, ApplicationListener<ApplicationReady
                 tmp.setHaValue("slave");
             }
             current = tmp;
+            createPath(currentPath, JacksonUtil.bean2JsonBytes(current), CreateMode.EPHEMERAL, "create node");
         }
         //处理下游节点
         try {
@@ -311,11 +310,4 @@ public class NodeCenter implements Watcher, ApplicationListener<ApplicationReady
         }
     }
 
-    @Override
-    public void onApplicationEvent(ApplicationReadyEvent applicationReadyEvent) {
-        if(current != null) {
-            createPath(currentPath, JacksonUtil.bean2JsonBytes(current), CreateMode.EPHEMERAL, "create node");
-        }
-        this.inited = true;
-    }
 }

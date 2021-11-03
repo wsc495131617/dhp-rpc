@@ -18,6 +18,7 @@ public enum RpcErrorCode {
 
     COMMAND_INTERCEPTOR_NOT_FOUND(1009, "Command Interceptor is not found, check bean define"),
     UNSUPPORTED_COMMAND_TYPE(1010, "Unsupported command type"),
+    UNSUPPORTED_CHANNEL_TYPE(1011, "Unsupported channel type"),
 
     PARAMETER_ERROR(2001, "parameter error: {}"),
     AUTH_ERROR(2002, "auth error"),

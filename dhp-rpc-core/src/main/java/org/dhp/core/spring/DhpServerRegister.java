@@ -9,6 +9,7 @@ import org.dhp.core.rpc.cmd.RpcCommand;
 import org.dhp.net.grizzly.GrizzlyRpcServer;
 import org.dhp.net.netty4.NettyRpcServer;
 import org.dhp.net.nio.NioRpcSocketServer;
+import org.dhp.net.zmq.ZmqRpcServer;
 import org.springframework.aop.framework.Advised;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.DisposableBean;
@@ -81,6 +82,8 @@ public class DhpServerRegister implements BeanPostProcessor, DisposableBean, App
                 server = new NettyRpcServer(dhpProperties.port, dhpProperties.getWorkThread());
             } else if (dhpProperties.type == ChannelType.NIO) {
                 server = new NioRpcSocketServer(dhpProperties.getPort(), dhpProperties.getWorkThread());
+            } else if (dhpProperties.type == ChannelType.ZMQ) {
+                server = new ZmqRpcServer(dhpProperties.getPort(), dhpProperties.getWorkThread());
             } else {
                 server = new GrizzlyRpcServer(dhpProperties.port, dhpProperties.getWorkThread());
             }
