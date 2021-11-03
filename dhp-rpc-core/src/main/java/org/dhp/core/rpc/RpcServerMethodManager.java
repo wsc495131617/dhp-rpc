@@ -3,19 +3,25 @@ package org.dhp.core.rpc;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.annotation.DMethod;
 import org.dhp.common.annotation.DService;
+import org.dhp.common.rpc.IServerMethodInterceptor;
 import org.dhp.common.rpc.StreamFuture;
+import org.dhp.core.rpc.cmd.PingCommand;
 import org.dhp.core.rpc.cmd.RpcCommand;
 import org.dhp.core.rpc.cmd.ServerRpcCommand;
 import org.dhp.core.spring.FrameworkException;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationListener;
 import org.springframework.util.StringUtils;
 
+import javax.annotation.Resource;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
@@ -26,12 +32,24 @@ import java.util.concurrent.CountDownLatch;
 @Slf4j
 public class RpcServerMethodManager implements IMethodManager, ApplicationListener<ApplicationReadyEvent> {
 
+    @Resource
+    ApplicationContext applicationContext;
+
     Map<String, ServerCommand> commands = new ConcurrentHashMap<>();
 
+    Set<String> nodeNames = new HashSet<>();
+
+    public void initBasicCommand() {
+        PingCommand pingCommand = new PingCommand();
+        addCommand(pingCommand);
+    }
+
     public void addServiceBean(Object bean, Class<?> cls) {
-        log.info("Add Service={}, bean={}", cls.getName(), bean);
         Method[] methods = cls.getDeclaredMethods();
         DService dService = cls.getAnnotation(DService.class);
+        String nodeName = dService.node();
+        nodeNames.add(nodeName);
+        log.info("Add Service={}, node={}, bean={}", cls.getName(), nodeName, bean);
         for (Method method : methods) {
             addMethod(method, bean, cls);
         }
@@ -54,6 +72,12 @@ public class RpcServerMethodManager implements IMethodManager, ApplicationListen
         }
     }
 
+    /**
+     * 增加服务端的方法处理，这时候需要增加拦截器解析，如果直接使用AOP，性能还是很受影响，因此底层考虑实现拦截器组件
+     * @param method
+     * @param bean
+     * @param cls
+     */
     protected void addMethod(Method method, Object bean, Class<?> cls) {
         log.info("Add method: {}", method);
         ServerCommand command = new ServerCommand();
@@ -68,6 +92,20 @@ public class RpcServerMethodManager implements IMethodManager, ApplicationListen
         //if defined Dmethod annotation, use dmethod to send
         if (dm != null && !StringUtils.isEmpty(dm.command())) {
             commandName = dm.command();
+        }
+        IServerMethodInterceptor[] interceptors = null;
+        //if defined interceptor
+        if (dm != null && dm.intercepts().length>0) {
+            interceptors = new IServerMethodInterceptor[dm.intercepts().length];
+            for(int i = 0;i<dm.intercepts().length;i++) {
+                Class<? extends IServerMethodInterceptor> intereptorCls = dm.intercepts()[i];
+                try {
+                    IServerMethodInterceptor interceptorBean = applicationContext.getBean(intereptorCls);
+                    interceptors[i] = interceptorBean;
+                } catch (Exception e) {
+                    throw new RpcException(RpcErrorCode.COMMAND_INTERCEPTOR_NOT_FOUND);
+                }
+            }
         }
         command.setName(commandName);
         commands.putIfAbsent(commandName, command);
@@ -114,7 +152,6 @@ public class RpcServerMethodManager implements IMethodManager, ApplicationListen
 
     @Override
     public void onApplicationEvent(ApplicationReadyEvent applicationReadyEvent) {
-        log.info("RpcServer is Ready!");
         readyLock.countDown();
     }
 }

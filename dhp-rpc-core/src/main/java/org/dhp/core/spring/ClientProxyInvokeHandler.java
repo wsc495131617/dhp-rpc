@@ -63,17 +63,25 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
         command.setCls(method.getDeclaringClass());
         command.setMethod(method);
 
+        command.setTimeout(15000);
+        command.setRetry(-1);
+
         DService service = command.getCls().getAnnotation(DService.class);
         command.setNodeName(service.node());
 
-        String methodName = method.getName();
-        String className = method.getDeclaringClass().getName();
-
-        String commandName = org.dhp.common.utils.StringUtils.simplePackage(className + ":" + methodName);
+        String commandName = org.dhp.common.utils.StringUtils.simplePackage(method.getDeclaringClass().getName() + ":" + method.getName());
         DMethod dm = method.getAnnotation(DMethod.class);
         //if defined Dmethod annotation, use dmethod to send
         if (dm != null && !StringUtils.isEmpty(dm.command())) {
             commandName = dm.command();
+        }
+        //timeout defined
+        if (dm != null && dm.timeout()>0) {
+            command.setTimeout(dm.timeout());
+        }
+        //retry define
+        if (dm != null && dm.retry()>0) {
+            command.setRetry(dm.retry());
         }
         command.setName(commandName);
         cacheCommands.put(method, command);
@@ -132,6 +140,7 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
         FutureImpl finalFuture = future;
         MethodType finalMethodType1 = methodType;
         Long ts = System.nanoTime();
+        long timeout = command.getTimeout();
         Stream<Message> stream = new Stream<Message>() {
             long ts = System.nanoTime();
 
@@ -193,7 +202,7 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
             return future;
         } else if (future != null) {
             try {
-                return future.get(15000, TimeUnit.MILLISECONDS);
+                return future.get(timeout, TimeUnit.MILLISECONDS);
             } catch (ExecutionException e) {
                 throw e.getCause();
             } catch (TimeoutException e) {

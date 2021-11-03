@@ -35,14 +35,10 @@ public class NoServerIDGenerator {
         if (pre_diff > 0)
             time += pre_diff;
         if (time > lastTimestamp && lastTimestamp > 0) {
-            if (logger.isDebugEnabled())
-                logger.debug("last create id:{},at:{}", _baseID, lastTimestamp);
             _baseID = RandomUtils.nextInt(1, 10000);
         } else {
             if (_baseID >= MaxID) {
                 try {
-                    if (logger.isDebugEnabled())
-                        logger.debug("wait for next millsecond");
                     Thread.sleep(1);
                     return make();
                 } catch (InterruptedException e) {

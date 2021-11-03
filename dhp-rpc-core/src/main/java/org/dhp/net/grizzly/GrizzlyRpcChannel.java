@@ -95,7 +95,9 @@ public class GrizzlyRpcChannel extends RpcChannel {
             connection = (TCPNIOConnection) transport.connect(this.getHost(), this.getPort()).get(this.getTimeout(), TimeUnit.MILLISECONDS);
             log.info("connect to {} {}:{}, {}", this.getName(), this.getHost(), this.getPort(), connection);
             rpcChannelPoolGuage.labels(getName(), this.getHost() + ":" + this.getPort(), "connect").inc();
-            return register();
+            this.active = true;
+            this.activeTime = System.currentTimeMillis();
+            return true;
         } catch (InterruptedException e) {
             log.warn(e.getMessage(), e);
         } catch (ExecutionException | TimeoutException e) {
@@ -109,17 +111,18 @@ public class GrizzlyRpcChannel extends RpcChannel {
         return connection == null || (connection != null && connection.isOpen() && connection.canWrite());
     }
 
-    protected GrizzlyMessage sendMessage(String command, byte[] body) {
-        checkConnection();
+    protected GrizzlyMessage createMessage(String command, byte[] body) {
         GrizzlyMessage message = new GrizzlyMessage();
         message.setId(_ID.incrementAndGet());
         message.setCommand(command);
         message.setData(body);
         message.setStatus(MessageStatus.Sending);
+        return message;
+    }
+
+    protected GrizzlyMessage sendMessage(GrizzlyMessage message) {
+        checkConnection();
         this.connection.write(message);
-//        if (log.isDebugEnabled()) {
-//            log.debug("send msg: {}, {}, isOpen={}", message, this.connection, this.connection.isOpen());
-//        }
         return message;
     }
 
@@ -149,8 +152,9 @@ public class GrizzlyRpcChannel extends RpcChannel {
 
     @Override
     public Integer write(String name, byte[] argBody, Stream<Message> messageStream) {
-        GrizzlyMessage message = sendMessage(name, argBody);
+        GrizzlyMessage message = createMessage(name, argBody);
         streamManager.setStream(message, messageStream);
+        sendMessage(message);
         return message.getId();
     }
 

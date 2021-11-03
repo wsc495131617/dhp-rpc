@@ -7,6 +7,7 @@ import lombok.Data;
  */
 @Data
 public class Node implements Comparable<Node> {
+    String id;
     /**
      * 同名Node可以允许多个存在
      */
@@ -17,7 +18,7 @@ public class Node implements Comparable<Node> {
     boolean enable = true;
     String haValue = "master";
     long timeout;
-    int channelSize = 4;
+    int channelSize = 8;
     /**
      * 通过注册中心更新
      */

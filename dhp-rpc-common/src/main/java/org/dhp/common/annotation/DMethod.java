@@ -1,5 +1,7 @@
 package org.dhp.common.annotation;
 
+import org.dhp.common.rpc.IServerMethodInterceptor;
+
 import java.lang.annotation.*;
 
 @Inherited
@@ -11,5 +13,14 @@ public @interface DMethod {
 
     long timeout() default -1;
 
-    String directProp() default "";
+    /**
+     * 重试次数 需要慎重使用，只有支持幂等以及查询类方法才能通用
+     */
+    long retry() default -1;
+
+    /**
+     * 拦截器
+     * @return
+     */
+    Class<? extends IServerMethodInterceptor>[] intercepts() default {};
 }

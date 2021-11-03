@@ -1,6 +1,7 @@
 package org.dhp.core.rpc;
 
 import lombok.Data;
+import org.dhp.common.rpc.IServerMethodInterceptor;
 
 import java.lang.reflect.Method;
 
@@ -14,4 +15,5 @@ public class ServerCommand {
     Class<?> cls;
     Object bean;
     MethodType type;
+    IServerMethodInterceptor[] interceptors;
 }

@@ -4,6 +4,7 @@ import lombok.Data;
 
 @Data
 public class NodeStatus {
+    String id;
     String path;
     String name;
     String host;

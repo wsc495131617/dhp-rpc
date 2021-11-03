@@ -2,6 +2,7 @@ package org.dhp.core.rpc;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.dhp.common.rpc.IServerMethodInterceptor;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.rpc.StreamFuture;
 import org.dhp.common.utils.JacksonUtil;
@@ -74,15 +75,19 @@ public class RpcExecutor {
                 //这里的stream会受到服务端自己管理，因此当session关闭的时候，考虑集群，不能把客户端的stream留在本地，需要移除，
                 // 因此需要加入到session管理，session销毁，就应该关闭stream，让客户端自己重新发起stream的请求
                 Message.requestLatency.labels("beforeServerStreamInvoke", message.getCommand(), message.getStatus().name()).observe(System.nanoTime() - message.ts);
-                command.getMethod().invoke(command.getBean(), params);
+                invoke(command, params);
                 Message.requestLatency.labels("serverStreamInvoked", message.getCommand(), MessageStatus.Completed.name()).observe(System.nanoTime() - message.ts);
                 session.addStream(stream);
             } catch (RuntimeException e) {
                 log.error(e.getMessage(), e);
+                stream.onFailed(e);
             } catch (IllegalAccessException e) {
+                log.error(e.getMessage(), e);
+                stream.onFailed(e);
             } catch (InvocationTargetException e) {
                 Throwable cause = e.getCause();
                 log.error(cause.getMessage(), cause);
+                stream.onFailed(cause);
             }
         } else {
             Object result = null;
@@ -96,7 +101,7 @@ public class RpcExecutor {
                 try {
                     Object param = ProtostuffUtils.deserialize(message.getData(), (Class<?>) paramTypes[0]);
                     Message.requestLatency.labels("beforeServerInvoke", message.getCommand(), message.getStatus().name()).observe(System.nanoTime() - message.ts);
-                    result = command.getMethod().invoke(command.getBean(), new Object[]{param});
+                    result = invoke(command, new Object[]{param});
                     Message.requestLatency.labels("serverInvoked", message.getCommand(), MessageStatus.Completed.name()).observe(System.nanoTime() - message.ts);
                 } catch (RuntimeException e) {
                     log.error(e.getMessage(), e);
@@ -135,6 +140,35 @@ public class RpcExecutor {
                     future.addStream(stream);
                     //加入到session管理里面，当session销毁，异步future就需要被cancel
                     session.addFuture(future);
+                }
+            }
+        }
+    }
+
+    private Object invoke(ServerCommand command, Object[] params) throws IllegalAccessException, InvocationTargetException {
+        //处理拦截器
+        if (command.interceptors != null) {
+            for (IServerMethodInterceptor interceptor : command.interceptors) {
+                try {
+                    interceptor.before(command.getBean(), command.getMethod(), params);
+                } catch (Throwable e) {
+                    log.warn("interceptor.before exception: {}", e.getMessage(), e);
+                }
+            }
+        }
+        Object result = null;
+        try {
+            result = command.getMethod().invoke(command.getBean(), params);
+            return result;
+        } finally {
+            //处理拦截器
+            if (command.interceptors != null) {
+                for (IServerMethodInterceptor interceptor : command.interceptors) {
+                    try {
+                        interceptor.after(command.getBean(), command.getMethod(), result);
+                    } catch (Throwable e) {
+                        log.warn("interceptor.after exception: {}", e.getMessage(), e);
+                    }
                 }
             }
         }

@@ -2,6 +2,7 @@ package org.dhp.lb;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.zookeeper.*;
 import org.dhp.common.utils.JacksonUtil;
 import org.dhp.common.utils.LocalIPUtils;
@@ -11,7 +12,7 @@ import org.dhp.core.rpc.RpcErrorCode;
 import org.dhp.core.rpc.RpcException;
 import org.dhp.core.spring.DhpProperties;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.ApplicationEvent;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
@@ -24,15 +25,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * Node注册中心，如果开启注册中心，那么所有dhp的下游节点，都通过注册中心来查找
  */
 @Slf4j
 @Data
-public class NodeCenter implements Watcher, ApplicationListener<ApplicationEvent> {
+public class NodeCenter implements Watcher, ApplicationListener<ApplicationReadyEvent> {
 
     /**
      * 集群名称
@@ -69,7 +68,8 @@ public class NodeCenter implements Watcher, ApplicationListener<ApplicationEvent
     static int sessionTimeout = 3000;
 
     @PostConstruct
-    public void init() throws Exception {
+    public  void init() throws Exception {
+        log.info("init NodeCenter");
         connectedSemaphore = new CountDownLatch(1);
         if (zk != null) {
             zk.close();
@@ -91,6 +91,7 @@ public class NodeCenter implements Watcher, ApplicationListener<ApplicationEvent
 
             //创建节点临时节点信息
             NodeStatus tmp = new NodeStatus();
+            tmp.setId(RandomStringUtils.random(16, true, true));
             //本节点的host, 一般是本机局域网IP
             String host = LocalIPUtils.resolveIp();
             String hostName = LocalIPUtils.hostName();
@@ -117,7 +118,6 @@ public class NodeCenter implements Watcher, ApplicationListener<ApplicationEvent
                 //先以从的身份启动，然后开始抢占主
                 tmp.setHaValue("slave");
             }
-            createPath(currentPath, JacksonUtil.bean2JsonBytes(tmp), CreateMode.EPHEMERAL, "create node");
             current = tmp;
         }
         //处理下游节点
@@ -142,13 +142,14 @@ public class NodeCenter implements Watcher, ApplicationListener<ApplicationEvent
 
 
     NodeStatus current;
+    boolean inited = false;
 
     /**
      * 5s更新一次节点信息
      */
     @Scheduled(fixedRate = 5000)
     public void updateNode() {
-        if (current == null) {
+        if (!inited) {
             return;
         }
         current.setCpuLoad(SystemInfoUtils.getProcessCpuLoad() + SystemInfoUtils.getSystemCpuLoad());
@@ -202,6 +203,7 @@ public class NodeCenter implements Watcher, ApplicationListener<ApplicationEvent
             }
             if (!hasNode) {
                 Node node = new Node();
+                node.setId(nodeStatus.getId());
                 node.setName(nodeStatus.getName());
                 node.setHost(nodeStatus.getHost());
                 node.setPort(nodeStatus.getPort());
@@ -296,7 +298,8 @@ public class NodeCenter implements Watcher, ApplicationListener<ApplicationEvent
         }
     }
 
-    public void close() {
+    @EventListener(ContextClosedEvent.class)
+    public void close(ContextClosedEvent event) {
         try {
             if (dhpProperties.getPort() > 0) {
                 zk.delete(currentPath, -1);
@@ -309,9 +312,10 @@ public class NodeCenter implements Watcher, ApplicationListener<ApplicationEvent
     }
 
     @Override
-    public void onApplicationEvent(ApplicationEvent applicationEvent) {
-        if(applicationEvent instanceof ContextClosedEvent) {
-            this.close();
+    public void onApplicationEvent(ApplicationReadyEvent applicationReadyEvent) {
+        if(current != null) {
+            createPath(currentPath, JacksonUtil.bean2JsonBytes(current), CreateMode.EPHEMERAL, "create node");
         }
+        this.inited = true;
     }
 }

@@ -12,9 +12,11 @@ import org.dhp.net.nio.NioRpcSocketServer;
 import org.springframework.aop.framework.Advised;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.annotation.Order;
 
 import javax.annotation.Resource;
 
@@ -22,8 +24,9 @@ import javax.annotation.Resource;
  * @author zhangcb
  */
 @Slf4j
+@Order(1)
 @ConditionalOnProperty(prefix = "dhp", name = "port")
-public class DhpServerRegister implements BeanPostProcessor, InitializingBean, DisposableBean {
+public class DhpServerRegister implements BeanPostProcessor, DisposableBean, ApplicationRunner {
 
     @Resource
     RpcServerMethodManager methodManager;
@@ -32,24 +35,6 @@ public class DhpServerRegister implements BeanPostProcessor, InitializingBean, D
     DhpProperties dhpProperties;
 
     IRpcServer server;
-
-    @Override
-    public void afterPropertiesSet() throws Exception {
-        if (dhpProperties.port <= 0) {
-            throw new FrameworkException("Invaild server port");
-        }
-        if (server == null) {
-            if (dhpProperties.type == ChannelType.Netty) {
-                server = new NettyRpcServer(dhpProperties.port, dhpProperties.getWorkThread());
-            } else if (dhpProperties.type == ChannelType.NIO) {
-                server = new NioRpcSocketServer(dhpProperties.getPort(), dhpProperties.getWorkThread());
-            } else {
-                server = new GrizzlyRpcServer(dhpProperties.port, dhpProperties.getWorkThread());
-            }
-            server.start(methodManager);
-            log.info("RpcServer({}) started!", dhpProperties.getPort());
-        }
-    }
 
     @Override
     public void destroy() throws Exception {
@@ -86,4 +71,22 @@ public class DhpServerRegister implements BeanPostProcessor, InitializingBean, D
         return bean;
     }
 
+    @Override
+    public void run(ApplicationArguments args) throws Exception {
+        if (dhpProperties.port <= 0) {
+            throw new FrameworkException("Invaild server port");
+        }
+        if (server == null) {
+            if (dhpProperties.type == ChannelType.Netty) {
+                server = new NettyRpcServer(dhpProperties.port, dhpProperties.getWorkThread());
+            } else if (dhpProperties.type == ChannelType.NIO) {
+                server = new NioRpcSocketServer(dhpProperties.getPort(), dhpProperties.getWorkThread());
+            } else {
+                server = new GrizzlyRpcServer(dhpProperties.port, dhpProperties.getWorkThread());
+            }
+            methodManager.initBasicCommand();
+            server.start(methodManager);
+            log.info("RpcServer({}) started!", dhpProperties.getPort());
+        }
+    }
 }

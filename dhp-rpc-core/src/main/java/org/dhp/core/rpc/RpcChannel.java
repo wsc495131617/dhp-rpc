@@ -3,15 +3,11 @@ package org.dhp.core.rpc;
 import io.prometheus.client.Gauge;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.dhp.common.rpc.SimpleStream;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.utils.NoServerIDGenerator;
-import org.dhp.common.utils.ProtostuffUtils;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -40,7 +36,6 @@ public abstract class RpcChannel {
     Long id;
     protected long activeTime = System.currentTimeMillis();
     protected boolean active;
-    protected boolean isRegistering;
 
     protected static AtomicInteger _ID = new AtomicInteger(1);
 
@@ -51,38 +46,6 @@ public abstract class RpcChannel {
 
     public RpcChannel() {
         id = channelID.make();
-        //id = System.currentTimeMillis()*1000+ ThreadLocalRandom.current().nextInt(1000,9999);
-    }
-
-    protected boolean register() {
-        this.isRegistering = true;
-        byte[] idBytes = ProtostuffUtils.serialize(Long.class, this.getId());
-        FutureImpl<Message> mfuture = new FutureImpl<>();
-        Stream<Message> stream = new SimpleStream<Message>() {
-            @Override
-            public void onNext(Message value) {
-                mfuture.result(value);
-            }
-        };
-        mfuture.addStream(stream);
-        write("register", idBytes, stream);
-        Message resp = null;
-        try {
-            resp = mfuture.get(3, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            log.warn("Register Failed by InterruptedException: " + getHost() + ":" + getPort() + " " + e.getMessage(), e);
-        } catch (ExecutionException e) {
-            log.warn("Register Failed by ExecutionException: " + getHost() + ":" + getPort() + " " + e.getMessage(), e);
-        } catch (TimeoutException e) {
-            log.warn("Register Failed by TimeoutException: " + getHost() + ":" + getPort() + " " + e.getMessage(), e);
-        }
-        if (resp != null && resp.getStatus() == MessageStatus.Completed) {
-            this.active = true;
-            this.isRegistering = false;
-            return true;
-        }
-        this.isRegistering = false;
-        return false;
     }
 
     /**
@@ -95,7 +58,7 @@ public abstract class RpcChannel {
      */
     public void ping() {
         //如果连接应不活跃，那么ping就没必要了，需要重新连接
-        if (this.active == false && !this.isRegistering) {
+        if (this.active == false) {
             try {
                 this.connect();
             } catch (TimeoutException e) {
@@ -103,31 +66,11 @@ public abstract class RpcChannel {
             }
             return;
         }
-        Long ts = System.currentTimeMillis();
-        byte[] idBytes = ProtostuffUtils.serialize(Long.class, ts);
-        FutureImpl<Message> mfuture = new FutureImpl<>();
-        Stream<Message> stream = new SimpleStream<Message>() {
-            @Override
-            public void onNext(Message value) {
-                mfuture.result(value);
-            }
-        };
-        mfuture.addStream(stream);
-        write("ping", idBytes, stream);
-        Message resp = null;
         try {
-            resp = mfuture.get(3, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            log.warn("Ping Failed by InterruptedException: " + getHost() + ":" + getPort() + " " + e.getMessage(), e);
-        } catch (ExecutionException e) {
-            log.warn("Ping Failed by ExecutionException: " + getHost() + ":" + getPort() + " " + e.getMessage(), e);
-        } catch (TimeoutException e) {
-            log.warn("Ping Failed by TimeoutException: " + getHost() + ":" + getPort() + " " + e.getMessage(), e);
-        }
-        if (resp != null && resp.getStatus() == MessageStatus.Completed) {
+            RpcCaller.call(this, "ping", System.currentTimeMillis(), Long.class);
             this.active = true;
-            this.activeTime = ts;
-        } else {
+            this.activeTime = System.currentTimeMillis();
+        } catch (Exception e) {
             this.active = false;
         }
     }

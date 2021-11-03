@@ -2,7 +2,6 @@ package org.dhp.net.nio;
 
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
-import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.rpc.*;
 import org.dhp.net.BufferMessage;
 
@@ -85,20 +84,6 @@ public class NioSelectorThread extends Thread {
     }
 
     protected void dealMessage(NioSession session, BufferMessage message) {
-        if (!session.isRegister()) {
-            if (message.getCommand().equalsIgnoreCase("register")) {
-                session.setId(ProtostuffUtils.deserialize(message.getData(), Long.class));
-                if (sessionManager.register(session)) {
-                    message.setStatus(MessageStatus.Completed);
-                } else {
-                    message.setStatus(MessageStatus.Failed);
-                }
-                session.write(message);
-            } else {
-                log.warn("收到未注册消息，丢弃: {}, 并关闭: {}", message, session);
-            }
-            return;
-        }
         ServerCommand command = methodManager.getCommand(message.getCommand());
         Stream stream = new NioStream(session.getId(), command, message);
         Workers.getWorker(message).execute(command, stream, message, session);

@@ -75,16 +75,27 @@ public class NettyRpcChannel extends RpcChannel {
             try {
                 log.info("connect to {}:{}", this.getHost(), this.getPort());
                 this.channel = b.connect(this.getHost(), this.getPort()).sync().channel();
+                this.active = true;
+                this.activeTime = System.currentTimeMillis();
             } catch (Exception e) {
                 log.warn("connect failed: "+e.getMessage());
                 throw new RpcException(RpcErrorCode.UNREACHABLE_NODE);
             }
-            return register();
+            return true;
         }
         return true;
     }
 
-    public NettyMessage sendMessage(String command, byte[] body) {
+    protected NettyMessage createMessage(String command, byte[] body) {
+        NettyMessage message = new NettyMessage();
+        message.setId(_ID.incrementAndGet());
+        message.setCommand(command);
+        message.setData(body);
+        message.setStatus(MessageStatus.Sending);
+        return message;
+    }
+
+    public NettyMessage sendMessage(NettyMessage message) {
         synchronized (channel) {
             while (readyToCloseConns.contains(channel)) {
                 try {
@@ -103,12 +114,6 @@ public class NettyRpcChannel extends RpcChannel {
                 }
             }
         }
-
-        NettyMessage message = new NettyMessage();
-        message.setId(_ID.incrementAndGet());
-        message.setCommand(command);
-        message.setData(body);
-        message.setStatus(MessageStatus.Sending);
         this.channel.writeAndFlush(message);
         return message;
     }
@@ -120,8 +125,9 @@ public class NettyRpcChannel extends RpcChannel {
 
     @Override
     public Integer write(String name, byte[] argBody, Stream<Message> messageStream) {
-        NettyMessage message = sendMessage(name, argBody);
+        NettyMessage message = createMessage(name, argBody);
         streamManager.setStream(message, messageStream);
+        sendMessage(message);
         return message.getId();
     }
 

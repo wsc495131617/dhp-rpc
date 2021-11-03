@@ -84,7 +84,7 @@ public class MessageDecoder {
             }
             return true;
         } catch (IOException e) {
-            log.warn("Decoder error", e);
+            log.warn("Decoder error {}", e.getMessage());
             return false;
         }
     }

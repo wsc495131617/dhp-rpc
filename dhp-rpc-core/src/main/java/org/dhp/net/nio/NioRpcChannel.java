@@ -8,6 +8,7 @@ import org.glassfish.grizzly.Buffer;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.StandardSocketOptions;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -74,7 +75,7 @@ public class NioRpcChannel extends RpcChannel {
     }
 
     protected boolean readMessage() {
-        if(socketChannel == null) {
+        if (socketChannel == null) {
             return false;
         }
         List<BufferMessage> messages = new LinkedList<>();
@@ -106,18 +107,32 @@ public class NioRpcChannel extends RpcChannel {
     public boolean connect() throws TimeoutException {
         try {
             if (socketChannel == null || !socketChannel.isConnected()) {
-                socketChannel = SocketChannel.open(new InetSocketAddress(this.getHost(), this.getPort()));
+                socketChannel = SocketChannel.open();
+                socketChannel.setOption(StandardSocketOptions.TCP_NODELAY, true);
+                socketChannel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
+                socketChannel.connect(new InetSocketAddress(this.getHost(), this.getPort()));
                 socketChannel.configureBlocking(false);
                 socketChannel.register(getSelector(), SelectionKey.OP_READ, this);
             }
-            return register();
+            this.active = true;
+            this.activeTime = System.currentTimeMillis();
+            return true;
         } catch (IOException e) {
             log.error("connet error {}", e.getMessage());
-            return false;
+            throw new RpcException(RpcErrorCode.UNREACHABLE_NODE);
         }
     }
 
-    public BufferMessage sendMessage(String command, byte[] body) throws IOException, TimeoutException {
+    protected BufferMessage createMessage(String command, byte[] body) {
+        BufferMessage message = new BufferMessage();
+        message.setId(_ID.incrementAndGet());
+        message.setCommand(command);
+        message.setData(body);
+        message.setStatus(MessageStatus.Sending);
+        return message;
+    }
+
+    public BufferMessage sendMessage(BufferMessage message) throws IOException, TimeoutException {
         synchronized (socketChannel) {
             while (readyToCloseConns.contains(socketChannel)) {
                 try {
@@ -136,12 +151,6 @@ public class NioRpcChannel extends RpcChannel {
                 }
             }
         }
-
-        BufferMessage message = new BufferMessage();
-        message.setId(_ID.incrementAndGet());
-        message.setCommand(command);
-        message.setData(body);
-        message.setStatus(MessageStatus.Sending);
         Buffer buffer = message.pack();
         this.socketChannel.write(buffer.toByteBuffer());
         buffer.dispose();
@@ -150,12 +159,13 @@ public class NioRpcChannel extends RpcChannel {
 
     @Override
     public Integer write(String name, byte[] argBody, Stream<Message> messageStream) {
-        BufferMessage message = null;
+        BufferMessage message = createMessage(name, argBody);
         try {
-            message = sendMessage(name, argBody);
             streamManager.setStream(message, messageStream);
+            sendMessage(message);
             return message.getId();
         } catch (IOException | TimeoutException e) {
+            streamManager.clearId(message.getId());
             return 0;
         }
     }

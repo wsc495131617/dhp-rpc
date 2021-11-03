@@ -21,11 +21,12 @@ public class RpcCaller {
         return call(channel, commandName, arg, respCls);
     }
 
-    public <T> T call(RpcChannel channel, String commandName, Object arg, final Class<T> respCls) {
+    public static <T> T call(RpcChannel channel, String commandName, Object arg, final Class<T> respCls) {
         long ts = System.nanoTime();
         FutureImpl<T> finalFuture = new FutureImpl();
         Stream<Message> stream = new Stream<Message>() {
             long ts = System.nanoTime();
+
             @Override
             public void onCanceled() {
                 finalFuture.cancel(false);

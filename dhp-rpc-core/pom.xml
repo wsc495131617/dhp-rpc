@@ -5,18 +5,18 @@
     <parent>
         <artifactId>dhp-rpc-parent</artifactId>
         <groupId>org.chzcb</groupId>
-        <version>1.0.0</version>
+        <version>1.1.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>dhp-rpc-core</artifactId>
-    <version>1.0.3</version>
+    <version>1.1.0-SHAPSHOT</version>
 
     <dependencies>
         <dependency>
             <groupId>org.chzcb</groupId>
             <artifactId>dhp-rpc-common</artifactId>
-            <version>1.0.3</version>
+            <version>1.1.0-SHAPSHOT</version>
             <exclusions>
                 <exclusion>
                     <artifactId>jackson-annotations</artifactId>
@@ -60,16 +60,10 @@
             <artifactId>grizzly-framework-monitoring</artifactId>
             <version>2.4.4</version>
         </dependency>
-
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
             <version>4.1.49.Final</version>
-        </dependency>
-        <dependency>
-            <groupId>org.zeromq</groupId>
-            <artifactId>jeromq</artifactId>
-            <version>0.5.2</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
@@ -85,6 +79,11 @@
             <groupId>io.prometheus</groupId>
             <artifactId>simpleclient</artifactId>
             <version>0.9.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.zeromq</groupId>
+            <artifactId>jeromq</artifactId>
+            <version>0.5.2</version>
         </dependency>
         <dependency>
             <groupId>com.lmax</groupId>

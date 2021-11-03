@@ -36,7 +36,7 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
 
     public NioRpcSocketServer(int port, int workThread) {
         this.port = port;
-        if(workThread <= 0) {
+        if (workThread <= 0) {
             workThread = 4;
         }
         this.workThread = workThread;
@@ -51,7 +51,6 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
         serverSocketChannel.bind(new InetSocketAddress(port));
         selector = Selector.open();
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-        log.info("start at {}", port);
         //开启IO线程
         selectorThreads = new NioSelectorThread[workThread];
         for (int i = 0; i < workThread; i++) {
@@ -100,7 +99,7 @@ public class NioRpcSocketServer implements IRpcServer, Runnable {
         try {
             client.configureBlocking(false);
             acceptQueue.add(client);
-            selectorThreads[acceptCount++%workThread].selector.wakeup();
+            selectorThreads[acceptCount++ % workThread].selector.wakeup();
         } catch (IOException e) {
         }
     }

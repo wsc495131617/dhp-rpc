@@ -38,6 +38,14 @@ public class HaSupport implements Watcher {
     @Resource
     ApplicationContext applicationContext;
 
+    /**
+     * 集群模式
+     * ms： 主备模式
+     * cluster: 集群模式，默认集群
+     */
+    @Value("${dhp.lb.ha:cluster}")
+    String ha = "cluster";
+
     protected ZooKeeper zk;
 
     //主节点路径
@@ -55,6 +63,9 @@ public class HaSupport implements Watcher {
 
     @PostConstruct
     public void init() {
+        if(!ha.equals("ms")) {
+            return;
+        }
         try {
             connect();
             masterPath = "/" + clusterName + "_MASTER/" + dhpProperties.getName();
@@ -117,7 +128,15 @@ public class HaSupport implements Watcher {
         }
     }
 
+    public boolean isCluster() {
+        return ha.equals("cluster");
+    }
+
     public boolean hasMaster() {
+        //如果是集群模式，当前节点就是主
+        if (isCluster()) {
+            return true;
+        }
         //首先查找是否已经有主了，有主就放弃申请，老老实实当个从
         try {
             Stat stat = zk.exists(masterPath, false);

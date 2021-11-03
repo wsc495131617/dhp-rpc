@@ -2,7 +2,6 @@ package org.dhp.net.grizzly;
 
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.common.rpc.Stream;
-import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.rpc.*;
 import org.glassfish.grizzly.filterchain.BaseFilter;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
@@ -42,21 +41,6 @@ public class MethodDispatchFilter extends BaseFilter {
     public NextAction handleRead(FilterChainContext ctx) throws IOException {
         GrizzlyMessage message = ctx.getMessage();
         Session session = sessionManager.getSession(ctx.getConnection());
-        if (!session.isRegister()) {
-            if (message.getCommand().equalsIgnoreCase("register")) {
-                session.setId(ProtostuffUtils.deserialize(message.getData(), Long.class));
-                if (sessionManager.register(session)) {
-                    message.setStatus(MessageStatus.Completed);
-                } else {
-                    message.setStatus(MessageStatus.Failed);
-                }
-                session.write(message);
-            } else {
-                log.warn("收到未注册消息，丢弃: {}, 并关闭连接: {}", message, ctx.getConnection());
-                ctx.getConnection().close();
-            }
-            return ctx.getStopAction();
-        }
         ServerCommand command = methodManager.getCommand(message.getCommand());
         Stream stream = new GrizzlyStream(session.getId(), command, message);
         Workers.getWorker(message).execute(command, stream, message, session);

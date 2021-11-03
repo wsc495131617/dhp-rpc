@@ -46,7 +46,7 @@ public class MemoryManagerJmxObject extends JmxObject {
         @Override
         public void onBufferAllocateEvent(int size) {
             nioMemoryGauge.labels("real").inc(size);
-            log.debug("onBufferAllocateEvent: {}",size);
+//            log.debug("onBufferAllocateEvent: {}",size);
         }
 
         @Override

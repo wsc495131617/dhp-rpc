@@ -78,7 +78,7 @@ public class Workers {
             while (true) {
                 collect();
                 try {
-                    Thread.sleep(5000);
+                    Thread.sleep(1000);
                 } catch (Exception e) {
                 }
             }

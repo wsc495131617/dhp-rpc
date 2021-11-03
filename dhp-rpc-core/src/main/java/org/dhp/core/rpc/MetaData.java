@@ -22,6 +22,13 @@ public class MetaData {
         return data;
     }
 
+    public void clear() {
+        if(this.data!=null) {
+            this.data.clear();
+            this.data = null;
+        }
+    }
+
     @Override
     public String toString() {
         return "MetaData{" +

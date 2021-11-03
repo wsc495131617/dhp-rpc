@@ -8,7 +8,7 @@ import org.dhp.core.spring.FrameworkException;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 服务端的StreamManager，用于管理所有的流
@@ -16,7 +16,7 @@ import java.util.concurrent.*;
  * @author zhangcb
  */
 @Slf4j
-public class ClientStreamManager implements Runnable {
+public class ClientStreamManager {
 
     static Map<Integer, Stream> handlerMap = new ConcurrentHashMap<>();
     static Map<Integer, Message> streamMessages = new ConcurrentHashMap<>();
@@ -43,24 +43,8 @@ public class ClientStreamManager implements Runnable {
         streamMessages.put(message.getId(), message);
     }
 
-    protected LinkedBlockingQueue<Message> cacheMessages = new LinkedBlockingQueue<>();
-
-    protected ScheduledExecutorService asyncDealMessagePool = Executors.newScheduledThreadPool(4);
-
     public ClientStreamManager() {
 
-    }
-
-    @Override
-    public void run() {
-        try {
-            Message message = cacheMessages.take();
-            if (message != null) {
-                handleMessage(message);
-            }
-        } catch (Throwable e) {
-            log.warn("Warn ClientStreamManager:" + e.getMessage(), e);
-        }
     }
 
     /**
@@ -69,17 +53,11 @@ public class ClientStreamManager implements Runnable {
      * @param message
      */
     public void handleMessage(Message message) {
-        if (!handlerMap.containsKey(message.getId()) && !streamMessages.containsKey(message.getId())) {
-            cacheMessages.add(message);
-//            log.info("message so fast:{}", message);
-            asyncDealMessagePool.schedule(this, 1, TimeUnit.MILLISECONDS);
-            return;
-        }
         Stream handler = handlerMap.get(message.getId());
         MessageStatus status = message.getStatus();
         switch (status) {
             case Canceled:
-                handler.onCanceled();
+                clearId(message.getId());
                 break;
             case Completed:
                 try {
@@ -105,4 +83,14 @@ public class ClientStreamManager implements Runnable {
     }
 
 
+    public void clearId(Integer id) {
+        Stream stream = handlerMap.remove(id);
+        if (stream != null) {
+            stream.onCanceled();
+        }
+        Message message = streamMessages.remove(id);
+        if (message != null) {
+            message.close();
+        }
+    }
 }

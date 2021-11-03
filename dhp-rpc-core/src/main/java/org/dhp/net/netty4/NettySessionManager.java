@@ -33,6 +33,7 @@ public class NettySessionManager extends SessionManager {
             session = old;
         }
         log.info("create session {}", connection);
+        register(session);
         return session;
     }
 
