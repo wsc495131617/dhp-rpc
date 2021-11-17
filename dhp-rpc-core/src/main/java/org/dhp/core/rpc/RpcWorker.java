@@ -51,8 +51,11 @@ public class RpcWorker implements IRpcWorker {
 
     long lastWaking = System.nanoTime();
     boolean running;
+    protected boolean dealing;
+
 
     public void dealTask(RpcExecutor task) {
+        dealing = true;
         final Session session = task.session;
         final Message message = task.message;
         final int size = allTasks.size();
@@ -83,6 +86,7 @@ public class RpcWorker implements IRpcWorker {
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         } finally {
+            dealing = false;
             if (task != null) {
                 task.release();
             }
@@ -106,6 +110,11 @@ public class RpcWorker implements IRpcWorker {
             }
             dealTask(task);
         }
+    }
+
+    @Override
+    public boolean isIdle() {
+        return allTasks.isEmpty() && dealing == false;
     }
 
     public void stop() {

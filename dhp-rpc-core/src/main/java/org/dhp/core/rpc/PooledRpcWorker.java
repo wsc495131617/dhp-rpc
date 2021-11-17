@@ -11,6 +11,7 @@ import java.util.concurrent.ExecutorService;
  */
 @Slf4j
 public class PooledRpcWorker extends RpcWorker {
+
     ExecutorService pool;
 
     public PooledRpcWorker(String name, ExecutorService pool) {

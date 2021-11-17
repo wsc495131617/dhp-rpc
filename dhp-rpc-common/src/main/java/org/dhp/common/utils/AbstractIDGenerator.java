@@ -50,4 +50,8 @@ public abstract class AbstractIDGenerator {
     }
 
     public abstract long make();
+
+    public String makeString() {
+        return LongUtils.toShortString(make(), 6);
+    }
 }

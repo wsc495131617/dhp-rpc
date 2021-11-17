@@ -1,5 +1,6 @@
 package org.dhp.common.core;
 
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -8,9 +9,8 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 public abstract class BaseWorker<T> implements Runnable {
-
-	static Logger logger = LoggerFactory.getLogger(BaseWorker.class);
 
 	BlockingQueue<T> queue;
 
@@ -46,8 +46,7 @@ public abstract class BaseWorker<T> implements Runnable {
 					dealItems(list);
 				break;
 			} catch (Throwable e) {
-				logger.error("", e);
-			} finally {
+				log.error("BaseWorker error: {}", e.getMessage(), e);
 			}
 		}
 	}

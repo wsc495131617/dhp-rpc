@@ -13,6 +13,7 @@ public class Command {
     String name;
     Class<?> cls;
     String nodeName;
+    String nodeProp;
     long timeout;
     long retry;
 }

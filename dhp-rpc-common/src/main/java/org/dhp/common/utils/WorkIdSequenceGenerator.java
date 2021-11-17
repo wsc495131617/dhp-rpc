@@ -17,19 +17,22 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class WorkIdSequenceGenerator extends AbstractIDGenerator {
-    protected static int MaxID = 33554431;
-
     protected Integer workId;
 
     protected Long epoch;
 
-    public WorkIdSequenceGenerator(Integer workId) {
+    public WorkIdSequenceGenerator(Integer workId, Long epoch) {
         if (workId > 127) {
             throw new RuntimeException("work id must less then 127");
         }
         this.workId = workId;
-        //2020-10-01 00:00:00 +8:00
-        this.epoch = 1601481600l;
+        this.epoch = epoch;
+        this.maxId = 33554431;
+    }
+
+    public WorkIdSequenceGenerator(Integer workId) {
+        //2021-11-01 00:00:00 +8:00
+        this(workId, 1635696000l);
     }
 
     public String formatId(long id) {
@@ -53,7 +56,7 @@ public class WorkIdSequenceGenerator extends AbstractIDGenerator {
     }
 
     @Override
-    public long make() {
+    public synchronized long make() {
         increment();
         //如果时间在epoch之前，那么id就是负数，这个时候需要核对系统时间
         long timeDiff = lastTs - epoch;

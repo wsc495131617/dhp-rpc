@@ -19,6 +19,12 @@ public @interface DMethod {
     long retry() default -1;
 
     /**
+     * 是否是广播，广播的话，只需要有一个下游节点返回就可以
+     * @return
+     */
+    boolean broadcast() default false;
+
+    /**
      * 拦截器
      * @return
      */

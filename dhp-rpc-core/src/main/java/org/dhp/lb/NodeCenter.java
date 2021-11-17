@@ -8,6 +8,7 @@ import org.dhp.common.utils.JacksonUtil;
 import org.dhp.common.utils.LocalIPUtils;
 import org.dhp.common.utils.SystemInfoUtils;
 import org.dhp.core.rpc.Node;
+import org.dhp.core.rpc.RpcChannelPool;
 import org.dhp.core.rpc.RpcErrorCode;
 import org.dhp.core.rpc.RpcException;
 import org.dhp.core.spring.DhpProperties;
@@ -54,6 +55,9 @@ public class NodeCenter implements Watcher {
     @Resource
     Environment environment;
 
+    @Resource
+    RpcChannelPool rpcChannelPool;
+
     String currentPath;
 
     CountDownLatch connectedSemaphore;
@@ -75,12 +79,14 @@ public class NodeCenter implements Watcher {
         }
         zk = new ZooKeeper(zkUrl, sessionTimeout, this);
         connectedSemaphore.await();
+
+        //创建集群根目录
+        String path = "/" + clusterName;
+        if (zk.exists(path, false) == null) {
+            createPath(path, new byte[0], CreateMode.PERSISTENT, "create cluster path");
+        }
+
         if (dhpProperties.getPort() > 0) {
-            //创建集群根目录
-            String path = "/" + clusterName;
-            if (zk.exists(path, false) == null) {
-                createPath(path, new byte[0], CreateMode.PERSISTENT, "create cluster path");
-            }
             //创建节点目录
             path = "/" + clusterName + "/" + dhpProperties.getName();
             if (zk.exists(path, false) == null) {
@@ -122,13 +128,13 @@ public class NodeCenter implements Watcher {
         //处理下游节点
         try {
             List<String> list = zk.getChildren("/" + clusterName, false);
-            for (String path : list) {
-                if (path.endsWith("MASTER")) {
+            for (String path1 : list) {
+                if (path1.endsWith("MASTER")) {
                     continue;
                 }
-                List<String> subList = zk.getChildren("/" + clusterName + "/" + path, false);
+                List<String> subList = zk.getChildren("/" + clusterName + "/" + path1, false);
                 for (String subPath : subList) {
-                    updateNextNode("/" + clusterName + "/" + path + "/" + subPath);
+                    updateNextNode("/" + clusterName + "/" + path1 + "/" + subPath);
                 }
             }
         } catch (KeeperException e) {
@@ -177,6 +183,9 @@ public class NodeCenter implements Watcher {
         }
         try {
             byte[] content = zk.getData(path, false, null);
+            if(content.length == 0) {
+                return;
+            }
             NodeStatus nodeStatus = JacksonUtil.bytes2Bean(content, NodeStatus.class);
             Vector<Node> nodes = dhpProperties.getNodes();
             if (nodes == null) {
@@ -212,6 +221,7 @@ public class NodeCenter implements Watcher {
                     node.setWeight(0.001);
                 }
                 node.setEnable(nodeStatus.getHaValue().equals("master"));
+                node.setHaValue(nodeStatus.getHaValue());
                 node.setPath(path);
                 node.setTimeout(5000);
                 nodes.add(node);
@@ -259,8 +269,10 @@ public class NodeCenter implements Watcher {
                     if (node.getPath().equalsIgnoreCase(watchedEvent.getPath())) {
                         deleteNodes.add(node);
                         log.info("delete node: {}", node);
+                        rpcChannelPool.removeChannels(node);
                     }
                 }
+                //删除的模式
                 deleteNodes.forEach(nodes::remove);
             } else {
                 log.info("watched other event: {}", watchedEvent);
@@ -282,8 +294,12 @@ public class NodeCenter implements Watcher {
      */
     @EventListener
     public void haEventListener(HaEvent haEvent) {
+        //已经关闭就无视
+        if(current == null) {
+            return;
+        }
         if (haEvent.getEvent().equals(HaEvent.GIVE_UP_MASTER)) {
-            //放弃后就设置为从
+            //手动放弃current不为null，设置
             current.setHaValue("slave");
         } else if (haEvent.getEvent().equals(HaEvent.TOBE_MASTER)) {
             current.setHaValue("master");

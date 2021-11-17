@@ -57,6 +57,7 @@ public class ProtostuffUtils {
             buffer = LinkedBuffer.allocate(LinkedBuffer.DEFAULT_BUFFER_SIZE);
             result = ProtostuffIOUtil.toByteArray(source, schema, buffer);
         } catch (Exception e) {
+            log.warn("_serialize error: {}", e.getMessage(), e);
             throw new RuntimeException("serialize exception");
         } finally {
             if (buffer != null) {

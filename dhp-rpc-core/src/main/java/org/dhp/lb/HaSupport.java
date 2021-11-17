@@ -63,7 +63,7 @@ public class HaSupport implements Watcher {
 
     @PostConstruct
     public void init() {
-        if(!ha.equals("ms")) {
+        if (!ha.equals("ms")) {
             return;
         }
         try {
@@ -105,7 +105,7 @@ public class HaSupport implements Watcher {
         if ("working".equals(state)) {
             this.state = "giveUp";
             this.master = false;
-            log.info("giveUpMaster {}", nodeName);
+            this.applicationContext.publishEvent(new HaEvent(HaEvent.GIVE_UP_MASTER, this));
             return true;
         }
         return false;
@@ -327,4 +327,7 @@ public class HaSupport implements Watcher {
         return false;
     }
 
+    public String currentNode() {
+        return dhpProperties.getName();
+    }
 }

@@ -9,10 +9,7 @@ import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.InitializingBean;
 
 import javax.annotation.Resource;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -51,11 +48,34 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
     protected Node getMasterNode(String nodeName) {
         TreeSet<Node> nodes = new TreeSet<>();
         if (nodeName != null && properties.getNodes() != null) {
+            List<Node> slaves = null;
             for (Node node : properties.getNodes()) {
                 //如果
-                if (node.isEnable() && node.getName().equals(nodeName)) {
-                    nodes.add(node);
+                if (node.getName().equals(nodeName)) {
+                    if (node.isEnable()) {
+                        nodes.add(node);
+                    } else {
+                        //如果下游节点有从
+                        if (node.getHaValue().equals("slave")) {
+                            slaves = new LinkedList<>();
+                            slaves.add(node);
+                        }
+                    }
                 }
+            }
+            //如果为空,并且有从，就等待5秒，等从可用
+            if (nodes.isEmpty() && slaves != null) {
+                do {
+                    for (Node node : slaves) {
+                        if (node.isEnable()) {
+                            nodes.add(node);
+                        }
+                    }
+                    try {
+                        Thread.sleep(1);
+                    } catch (InterruptedException e) {
+                    }
+                } while (nodes.isEmpty());
             }
         }
         return nodes.pollFirst();
@@ -63,6 +83,7 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
 
     /**
      * 根据nodeName获取
+     *
      * @param nodeName
      * @return
      */
@@ -72,6 +93,25 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
             throw new RpcException(RpcErrorCode.NODE_NOT_FOUND);
         }
         return getChannel(node);
+    }
+
+    /**
+     * 移除节点的所有channel
+     *
+     * @param node
+     */
+    public void removeChannels(Node node) {
+        RpcChannel[] channels = allChannels.get(node);
+        if (channels != null) {
+            for (int i = 0; i < channels.length; i++) {
+                RpcChannel rpcChannel = channels[i];
+                if(rpcChannel != null) {
+                    rpcChannel.close();
+                }
+                channels[i] = null;
+            }
+            allChannels.remove(node);
+        }
     }
 
     /**

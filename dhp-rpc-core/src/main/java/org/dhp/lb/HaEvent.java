@@ -9,7 +9,7 @@ import org.springframework.context.ApplicationEvent;
 public class HaEvent extends ApplicationEvent {
 
     /**
-     * 放弃主的身份事件
+     * 手动放弃主的身份事件
      */
     public static final String GIVE_UP_MASTER = "give_up_master";
 

@@ -8,9 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.*;
 
 /**
  * @author zhangcb
@@ -46,6 +44,8 @@ public class Workers {
 
     static ExecutorService pool;
 
+    static LinkedBlockingQueue poolQueue = new LinkedBlockingQueue<Runnable>();
+
     /**
      * NEW_WORKER_THRESHOLD 毫秒的延迟 就需要单独分离Worker处理，避免影响主线程。
      */
@@ -71,7 +71,9 @@ public class Workers {
             COMMAND_POOL_SIZE = Cast.toInteger(value);
         }
         coreWorkers = new IRpcWorker[CORE_POOL_SIZE];
-        pool = Executors.newFixedThreadPool(COMMAND_POOL_SIZE);
+        pool = new ThreadPoolExecutor(COMMAND_POOL_SIZE, COMMAND_POOL_SIZE,
+                0L, TimeUnit.MILLISECONDS,
+                poolQueue);
         ThreadPoolExecutorMetrics.addThreadPoolExecutor((ThreadPoolExecutor) pool, "dhp_command_pool");
         //搜集线程
         Thread t = new Thread(() -> {
@@ -144,6 +146,41 @@ public class Workers {
             }
         }
         return simple;
+    }
+
+    /**
+     * 慎用
+     * @return
+     */
+    public synchronized static int getTaskSize() {
+        int size = 0;
+        for(IRpcWorker worker : coreWorkers) {
+            if(worker != null) {
+                size += worker.getSize();
+            }
+        }
+        size += poolQueue.size();
+        return size;
+    }
+
+    /**
+     * 判断是否空闲
+     * @return
+     */
+    public synchronized static boolean isIdle() {
+        for(IRpcWorker worker : coreWorkers) {
+            if(worker != null) {
+                if(!worker.isIdle()) {
+                    return false;
+                }
+            }
+        }
+        for(PooledRpcWorker worker : commandWorkers.values()) {
+            if(!worker.isIdle()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static IRpcWorker createWorker(String name) {

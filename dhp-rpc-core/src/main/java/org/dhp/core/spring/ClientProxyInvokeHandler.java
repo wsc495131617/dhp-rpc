@@ -5,6 +5,8 @@ import org.dhp.common.annotation.DMethod;
 import org.dhp.common.annotation.DService;
 import org.dhp.common.rpc.Stream;
 import org.dhp.common.rpc.StreamFuture;
+import org.dhp.common.utils.BeansUtils;
+import org.dhp.common.utils.Cast;
 import org.dhp.common.utils.ProtostuffUtils;
 import org.dhp.core.rpc.*;
 import org.springframework.beans.BeansException;
@@ -68,6 +70,7 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
 
         DService service = command.getCls().getAnnotation(DService.class);
         command.setNodeName(service.node());
+        command.setNodeProp(service.prop().equals("") ? null : service.prop());
 
         String commandName = org.dhp.common.utils.StringUtils.simplePackage(method.getDeclaringClass().getName() + ":" + method.getName());
         DMethod dm = method.getAnnotation(DMethod.class);
@@ -76,11 +79,11 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
             commandName = dm.command();
         }
         //timeout defined
-        if (dm != null && dm.timeout()>0) {
+        if (dm != null && dm.timeout() > 0) {
             command.setTimeout(dm.timeout());
         }
         //retry define
-        if (dm != null && dm.retry()>0) {
+        if (dm != null && dm.retry() > 0) {
             command.setRetry(dm.retry());
         }
         command.setName(commandName);
@@ -105,6 +108,7 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
             throw new RpcException(RpcErrorCode.COMMAND_NOT_FOUND);
         }
 
+        String nodeName = command.getNodeName();
         Type returnType = method.getReturnType();
         Type[] paramTypes = method.getParameterTypes();
 
@@ -122,19 +126,29 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
             } else {
                 methodType = MethodType.Default;
             }
+            if (command.getNodeProp() != null) {
+                nodeName = Cast.toString(BeansUtils.getProperty(args[0], command.getNodeProp()));
+            }
             argBody = ProtostuffUtils.serialize((Class) paramTypes[0], args[0]);
         } else if (args.length == 2) {//如果入参是2个，那么就说明，其中一个是入参对象，另外一个是Stream流对象
             if (paramTypes[0] instanceof Stream) {
                 argBody = ProtostuffUtils.serialize((Class) paramTypes[1], args[1]);
                 argStream = (Stream) args[0];
+                if (command.getNodeProp() != null) {
+                    nodeName = Cast.toString(BeansUtils.getProperty(args[1], command.getNodeProp()));
+                }
             } else {
                 argBody = ProtostuffUtils.serialize((Class) paramTypes[0], args[0]);
+                if (command.getNodeProp() != null) {
+                    nodeName = Cast.toString(BeansUtils.getProperty(args[0], command.getNodeProp()));
+                }
                 argStream = (Stream) args[1];
             }
             methodType = MethodType.Stream;
         } else {
             throw new RpcException(RpcErrorCode.ILLEGAL_PARAMETER_DEFINITION);
         }
+
         MethodType finalMethodType = methodType;
         Stream finalArgStream = argStream;
         FutureImpl finalFuture = future;
@@ -189,7 +203,7 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
             }
         };
         //发送
-        Integer messageId = sendMessage(command, argBody, stream);
+        Integer messageId = sendMessage(command.getName(), nodeName, argBody, stream);
 //        if (log.isInfoEnabled()) {
 //            log.info("call {} - {}, args: {}", messageId, command.getMethod(), JacksonUtil.bean2Json(args));
 //        }
@@ -245,13 +259,15 @@ public class ClientProxyInvokeHandler implements IClientInvokeHandler, ImportBea
     /**
      * 发送消息，并返回消息编号
      *
-     * @param command
+     * @param commandName
+     * @param nodeName
      * @param argBody
+     * @param stream
      * @return
      */
-    protected Integer sendMessage(Command command, byte[] argBody, Stream<Message> stream) {
-        RpcChannel channel = channelPool.getChannel(command.getNodeName());
-        return channel.write(command.getName(), argBody, stream);
+    protected Integer sendMessage(String commandName, String nodeName, byte[] argBody, Stream<Message> stream) {
+        RpcChannel channel = channelPool.getChannel(nodeName);
+        return channel.write(commandName, argBody, stream);
     }
 
 

@@ -12,4 +12,5 @@ public interface IRpcWorker extends Runnable{
     double getAvg(String commandId);
     String getName();
     long getTotal();
+    boolean isIdle();
 }

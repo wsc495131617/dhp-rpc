@@ -6,7 +6,6 @@ import org.glassfish.grizzly.Buffer;
 import org.glassfish.grizzly.memory.MemoryManager;
 import org.glassfish.grizzly.memory.PooledMemoryManager;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.List;
@@ -15,7 +14,7 @@ import java.util.List;
 public class MessageDecoder {
 
     //HeapMemoryManager 因为需要线程池支持缓存，所以没用grizzly框架就不能用HeapMemoryManager
-    public static MemoryManager memoryManager = new PooledMemoryManager(){
+    public static MemoryManager memoryManager = new PooledMemoryManager() {
         @Override
         protected Object createJmxManagementObject() {
             return new MemoryManagerJmxObject(this);
@@ -83,8 +82,8 @@ public class MessageDecoder {
                 }
             }
             return true;
-        } catch (IOException e) {
-            log.warn("Decoder error {}", e.getMessage());
+        } catch (Exception e) {
+            log.warn("Read message error: {}", e.getMessage(), e);
             return false;
         }
     }

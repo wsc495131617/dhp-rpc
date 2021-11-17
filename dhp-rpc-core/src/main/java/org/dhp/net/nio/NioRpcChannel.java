@@ -16,6 +16,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 public class NioRpcChannel extends RpcChannel {
@@ -26,12 +27,14 @@ public class NioRpcChannel extends RpcChannel {
 
     Selector selector;
 
+    AtomicBoolean running = new AtomicBoolean(false);
+
     Selector getSelector() {
         if (selector == null) {
             try {
                 selector = Selector.open();
                 Thread thread = new Thread(() -> {
-                    while (true) {
+                    while (running.get()) {
                         try {
                             selector.select(1000);
                             Iterator<SelectionKey> it = selector.selectedKeys().iterator();
@@ -42,6 +45,9 @@ public class NioRpcChannel extends RpcChannel {
                             }
                         } catch (Exception e) {
                             log.error(e.getMessage(), e);
+                            try {
+                                Thread.sleep(10);
+                            } catch(Exception e1){}
                         }
                     }
                 });
@@ -67,6 +73,7 @@ public class NioRpcChannel extends RpcChannel {
     @Override
     public void start() {
         try {
+            running.set(true);
             messageDecoder = new MessageDecoder(2048);
             streamManager = new ClientStreamManager();
             connect();
@@ -119,7 +126,7 @@ public class NioRpcChannel extends RpcChannel {
             return true;
         } catch (IOException e) {
             log.error("connet error {}", e.getMessage());
-            throw new RpcException(RpcErrorCode.UNREACHABLE_NODE);
+            return false;
         }
     }
 
@@ -172,7 +179,8 @@ public class NioRpcChannel extends RpcChannel {
 
     @Override
     public void close() {
-
+        log.info("close channel: {}", this);
+        this.running.set(false);
     }
 
 }
