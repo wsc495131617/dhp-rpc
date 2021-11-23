@@ -120,6 +120,7 @@ public class NioRpcChannel extends RpcChannel {
                 socketChannel.connect(new InetSocketAddress(this.getHost(), this.getPort()));
                 socketChannel.configureBlocking(false);
                 socketChannel.register(getSelector(), SelectionKey.OP_READ, this);
+                rpcChannelPoolGuage.labels(getName(), this.getHost() + ":" + this.getPort(), "connect").inc();
             }
             this.active = true;
             this.activeTime = System.currentTimeMillis();

@@ -43,6 +43,7 @@ public class GrizzlyRpcChannel extends RpcChannel {
                         public NextAction handleClose(FilterChainContext ctx) throws IOException {
                             Connection connection = ctx.getConnection();
                             readyToCloseConns.remove(connection);
+                            rpcChannelPoolGuage.labels(getName(), getHost() + ":" + getPort(), "connect").dec();
                             log.info("connection:{} closed!", connection);
                             return super.handleClose(ctx);
                         }

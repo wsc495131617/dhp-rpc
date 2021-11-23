@@ -44,7 +44,7 @@ public class GrizzlySessionManager extends SessionManager {
     @Override
     public void forceClose() {
         closing = true;
-        allSessions.values().parallelStream().forEach(session -> {
+        allSessions.values().stream().forEach(session -> {
             GrizzlyMessage message = new GrizzlyMessage();
             message.setId(0);
             message.setCommand("close");
