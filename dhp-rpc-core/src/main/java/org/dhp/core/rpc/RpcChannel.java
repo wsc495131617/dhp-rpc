@@ -22,12 +22,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Data
 public abstract class RpcChannel {
 
-    protected static Gauge rpcChannelPoolGuage = Gauge.build(
-            "rpc_channel_pool_guage",
-            "rpc连接池任务队列情况")
-            .labelNames("name", "endpoint", "type")
-            .register();
-
     String name;
     int port;
     String host;

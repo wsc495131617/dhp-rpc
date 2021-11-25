@@ -1,6 +1,7 @@
 package org.dhp.core.rpc;
 
 import com.google.common.collect.Lists;
+import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
 import org.dhp.core.spring.DhpProperties;
 import org.springframework.beans.BeansException;
@@ -20,6 +21,12 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
+
+    protected static Gauge rpcChannelPoolGuage = Gauge.build(
+            "rpc_channel_pool_guage",
+            "rpc连接池任务队列情况")
+            .labelNames("name", "endpoint", "type")
+            .register();
 
     protected Set<RpcChannel> readyToCloseChannels = ConcurrentHashMap.newKeySet();
 
@@ -105,7 +112,7 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
         if (channels != null) {
             for (int i = 0; i < channels.length; i++) {
                 RpcChannel rpcChannel = channels[i];
-                if(rpcChannel != null) {
+                if (rpcChannel != null) {
                     rpcChannel.close();
                 }
                 channels[i] = null;
@@ -181,13 +188,18 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
             while (true) {
                 try {
                     //ping所有的连接
-                    allChannels.values().stream().forEach(rpcChannels -> {
+                    for (Node node : allChannels.keySet()) {
+                        RpcChannel[] rpcChannels = allChannels.get(node);
+                        double connected = 0;
                         for (RpcChannel channel : rpcChannels) {
                             if (channel != null) {
                                 channel.ping();
+                                if (channel.isActive()) {
+                                    connected++;
+                                }
                             }
                         }
-                    });
+                    }
                     //检查所有待关闭的channel，如果已经关闭的就移除，如果未活跃的连接，1分钟后关闭并移除
                     readyToCloseChannels.removeIf(rpcChannel -> {
                         if (rpcChannel.isClose()) {

@@ -44,7 +44,6 @@ public class NettyRpcChannel extends RpcChannel {
                             public void channelInactive(ChannelHandlerContext ctx) throws Exception {
                                 log.info("channel is closed: {}", ctx.channel());
                                 //cancel all req
-                                rpcChannelPoolGuage.labels(getName(), getHost() + ":" + getPort(), "connect").dec();
                                 super.channelInactive(ctx);
                             }
 
@@ -76,7 +75,6 @@ public class NettyRpcChannel extends RpcChannel {
             try {
                 log.info("connect to {}:{}", this.getHost(), this.getPort());
                 this.channel = b.connect(this.getHost(), this.getPort()).sync().channel();
-                rpcChannelPoolGuage.labels(getName(), this.getHost() + ":" + this.getPort(), "connect").inc();
                 this.active = true;
                 this.activeTime = System.currentTimeMillis();
             } catch (Exception e) {
