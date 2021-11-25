@@ -22,10 +22,15 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
 
-    protected static Gauge rpcChannelPoolGuage = Gauge.build(
-            "rpc_channel_pool_guage",
-            "rpc连接池任务队列情况")
+    protected static Gauge rpcChannelPoolGauge = Gauge.build(
+            "rpc_channel_pool_gauge",
+            "rpc连接池 连接数量")
             .labelNames("name", "endpoint", "type")
+            .register();
+    protected static Gauge nodeWeight = Gauge.build(
+            "node_weight",
+            "节点权重情况")
+            .labelNames("name", "host", "port")
             .register();
 
     protected Set<RpcChannel> readyToCloseChannels = ConcurrentHashMap.newKeySet();
@@ -199,6 +204,8 @@ public class RpcChannelPool implements InitializingBean, BeanFactoryAware {
                                 }
                             }
                         }
+                        nodeWeight.labels(node.getName(), node.getHost(), "" + node.getPort()).set(node.getWeight());
+                        rpcChannelPoolGauge.labels(properties.getName(), node.getHost() + ":" + node.getPort(), "connect").set(connected);
                     }
                     //检查所有待关闭的channel，如果已经关闭的就移除，如果未活跃的连接，1分钟后关闭并移除
                     readyToCloseChannels.removeIf(rpcChannel -> {
